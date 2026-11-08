@@ -20,7 +20,7 @@ window.__ModuleLoader__.load({
 /* 「浏览器」页签：画面 + 坐标点击 + 键盘回放 */
 .nva .live-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .nva .live-url{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:420px;flex:1;min-width:120px}
-.nva .live-shot{border:.5px solid var(--dsw-alias-border-l2);border-radius:10px;overflow:hidden;background:var(--dsw-alias-bg-layer-2);line-height:0}
+.nva .live-shot{border:.5px solid var(--dsw-alias-border-l2);border-radius:10px;overflow:hidden;background:var(--dsw-alias-bg-layer-2);line-height:0;min-height:260px;display:flex;align-items:center;justify-content:center}
 .nva .live-shot img{width:100%;height:auto;display:block;cursor:crosshair}
 .nva .live-input{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .nva .live-input input{flex:1;min-width:160px;background:var(--dsw-alias-bg-layer-1);border:.5px solid var(--dsw-alias-border-l2);border-radius:8px;padding:7px 10px;font:inherit;font-size:13px;color:var(--dsw-alias-label-primary)}
@@ -322,7 +322,7 @@ window.__ModuleLoader__.load({
           if (stop || !live) return
           pull()
           setTick((n) => n + 1)
-        }, 1200)
+        }, 400)
         return () => { stop = true; clearInterval(t) }
       }, [live])
 
@@ -380,7 +380,7 @@ window.__ModuleLoader__.load({
           h('button', { className: 'act', onClick: () => act('/live/key', { key: 'Escape' }) }, 'Esc'),
         ),
         note ? h('div', { className: 'mono' }, note) : null,
-        h('div', { className: 'mono' }, '画面 ' + info.w + '×' + info.h + ' · 每 1.2 秒刷新一次，点画面即点击页面'),
+        h('div', { className: 'mono' }, '画面 ' + info.w + '×' + info.h + ' · 每 0.4 秒刷新一次，点画面即点击页面'),
       )
     }
 

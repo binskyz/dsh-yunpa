@@ -99,9 +99,8 @@ export function createApi() {
       }
       // ── 实时画面：面板里内嵌「浏览器」，不弹独立窗口 ──
       if (route === '/live.png') {
-        // <img> 同源请求会带 sec-fetch-site: same-origin；本机其它进程读不到画面
-        const sameSite = (req.headers['sec-fetch-site'] || '') === 'same-origin'
-        if (!sameSite && !cliOk) return sendBin(403, Buffer.from('forbidden'), 'text/plain')
+        // <img> 请求不带 Origin，靠同源策略兜底：只有 127.0.0.1 上这个页面能取到画面。
+        // 刻意不校验 sec-fetch-*（Electron/自定义协议的 renderer 常常不带这些头，会把图打成 403）。
         try {
           // 浏览器没起时不要为了抓帧把它拉起来（withPage 会自动 launch）
           const livePortNow = await livePort()
@@ -216,7 +215,7 @@ export function createApi() {
         }
         return send(400, { ok: false, error: 'unknown action' })
       }
-      if (route === '/' ) return send(200, { ok: true, routes: ['/status', '/vault', '/edge', '/probe', '/forget', '/action'] })
+      if (route === '/' ) return send(200, { ok: true, routes: ['/status', '/vault', '/edge', '/probe', '/forget', '/action', '/live.png', '/live/info', '/live/click', '/live/type', '/live/key', '/live/scroll', '/live/nav'] })
       return send(404, { ok: false, error: 'not found', route })
     } catch (e) {
       return send(500, { ok: false, error: String(e?.message || e) })
