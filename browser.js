@@ -296,3 +296,15 @@ export async function scrollBy(dy, x = 200, y = 200) {
     return { ok: true, dy }
   })
 }
+
+/** 把受控浏览器的视口调成面板尺寸，截图才不会被拉成大片黑边。 */
+export async function setViewport(width, height) {
+  const w = Math.max(320, Math.min(3840, Math.round(Number(width) || 0)))
+  const h = Math.max(240, Math.min(2400, Math.round(Number(height) || 0)))
+  return withPage(async ({ send }) => {
+    await send('Emulation.setDeviceMetricsOverride', {
+      width: w, height: h, deviceScaleFactor: 1, mobile: false,
+    })
+    return { ok: true, w, h }
+  })
+}

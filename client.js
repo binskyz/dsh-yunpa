@@ -26,7 +26,7 @@ window.__ModuleLoader__.load({
 .nva .live-input input{flex:1;min-width:160px;background:var(--dsw-alias-bg-layer-1);border:.5px solid var(--dsw-alias-border-l2);border-radius:8px;padding:7px 10px;font:inherit;font-size:13px;color:var(--dsw-alias-label-primary)}
 /* 右侧浮层抽屉（shell.overlay）：常驻可见、可收起 */
 .yunpa-dock-handle{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:60;pointer-events:auto;writing-mode:vertical-rl;letter-spacing:2px;padding:14px 5px;border-radius:10px 0 0 10px;background:var(--dsw-alias-bg-layer-1);border:.5px solid var(--dsw-alias-border-l2);border-right:0;font-size:12px;color:var(--dsw-alias-label-secondary);cursor:pointer;box-shadow:-2px 0 8px rgba(0,0,0,.12)}
-.yunpa-dock{position:fixed;right:10px;top:64px;bottom:12px;width:min(420px,42vw);z-index:61;pointer-events:auto;display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:14px;background:var(--dsw-alias-bg-layer-1);border:.5px solid var(--dsw-alias-border-l2);box-shadow:0 8px 28px rgba(0,0,0,.28);color:var(--dsw-alias-label-primary)}
+.yunpa-dock{position:fixed;right:10px;top:64px;max-height:calc(100vh - 80px);width:min(420px,42vw);z-index:61;pointer-events:auto;display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:14px;background:var(--dsw-alias-bg-layer-1);border:.5px solid var(--dsw-alias-border-l2);box-shadow:0 8px 28px rgba(0,0,0,.28);color:var(--dsw-alias-label-primary)}
 .yunpa-dock-head{display:flex;align-items:center;gap:6px;cursor:grab;user-select:none;touch-action:none}
 .yunpa-dock-head:active{cursor:grabbing}
 .yunpa-dock-handle{touch-action:none;user-select:none}
@@ -34,9 +34,9 @@ window.__ModuleLoader__.load({
 .yunpa-dock button{font-size:12px;padding:4px 8px;border-radius:7px;border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);color:inherit;cursor:pointer;white-space:nowrap}
 .yunpa-dock button.pri{background:var(--dsw-alias-state-business-primary);border-color:transparent;color:#fff}
 .yunpa-dock .mono{font-family:var(--dsw-font-mono,ui-monospace,monospace);font-size:11px;color:var(--dsw-alias-label-tertiary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.yunpa-dock-shot{flex:1;min-height:0;overflow:auto;border-radius:10px;border:.5px solid var(--dsw-alias-border-l2);line-height:0;background:#000}
+.yunpa-dock-shot{flex:0 0 auto;overflow:hidden;border-radius:10px;border:.5px solid var(--dsw-alias-border-l2);line-height:0;background:#111}
 .yunpa-dock-shot img{width:100%;height:auto;display:block;cursor:crosshair}
-.yunpa-dock-empty{flex:1;display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;text-align:center;font-size:12px;color:var(--dsw-alias-label-tertiary);padding:0 10px}
+.yunpa-dock-empty{min-height:180px;display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;text-align:center;font-size:12px;color:var(--dsw-alias-label-tertiary);padding:0 10px}
 .yunpa-dock-input{display:flex;gap:6px}
 .yunpa-dock-input input{flex:1;min-width:0;font:inherit;font-size:12px;padding:6px 8px;border-radius:7px;border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);color:inherit}
 .nva h2{margin:0;font-size:18px;font-weight:600}
@@ -399,6 +399,7 @@ window.__ModuleLoader__.load({
       const [note, setNote] = useState('')
       const [text, setText] = useState('')
       const imgRef = React.useRef(null)
+      const shotRef = React.useRef(null)
       const dockRef = React.useRef(null)
       const dragRef = React.useRef(null)
       const handleDrag = React.useRef(null)
@@ -459,6 +460,32 @@ window.__ModuleLoader__.load({
         const t = setInterval(() => { if (!stop) setTick((n) => n + 1) }, 400)
         return () => { stop = true; clearInterval(t) }
       }, [open, live, running])
+
+      // 面板尺寸 → 受控浏览器视口：截图正好铺满抽屉，不会被拉成大片黑边
+      useEffect(() => {
+        if (!open || !running) return
+        const el = shotRef.current
+        if (!el) return
+        let timer = 0
+        let last = { w: 0, h: 0 }
+        const push = () => {
+          const r = el.getBoundingClientRect()
+          const w = Math.round(r.width)
+          const h = Math.round(r.height)
+          if (w < 200 || h < 160) return
+          if (Math.abs(w - last.w) < 8 && Math.abs(h - last.h) < 8) return
+          last = { w, h }
+          clearTimeout(timer)
+          timer = setTimeout(() => {
+            post('/live/size', { w, h }).then(() => setTick((n) => n + 1)).catch(() => {})
+          }, 350)
+        }
+        let ro
+        try { ro = new ResizeObserver(push) } catch { ro = null }
+        if (ro) ro.observe(el)
+        push()
+        return () => { if (ro) ro.disconnect(); clearTimeout(timer) }
+      }, [open, running])
 
       const act = async (path, body) => {
         try {
@@ -579,7 +606,7 @@ window.__ModuleLoader__.load({
           h('button', { onPointerDown: stopDrag, onClick: () => setOpen(false), title: '收起' }, '收起'),
         ),
         running
-          ? h('div', { className: 'yunpa-dock-shot' },
+          ? h('div', { className: 'yunpa-dock-shot', ref: shotRef },
             h('img', {
               ref: imgRef, alt: '受控浏览器画面', draggable: false,
               src: live ? '/api/yunpa/live.png?q=60&t=' + tick : undefined,

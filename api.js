@@ -3,7 +3,7 @@
 import { loadVault, saveVault, probeSite, SITES, ROOT, VAULT, CFT_EXE, livePort, closeBrowser, launchBrowser, audit, crash, loadSites, saveSites } from './core.js'
 import { listLogins } from './edge_creds.js'
 // 实时画面与坐标回放：让侧边栏面板里能看、能点，不必弹独立窗口
-import { liveShot, liveInfo, clickAt, typeText, pressKey, scrollBy } from './browser.js'
+import { liveShot, liveInfo, clickAt, typeText, pressKey, scrollBy, setViewport } from './browser.js'
 import { randomBytes } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -113,6 +113,12 @@ export function createApi() {
         }
       }
       if (route === '/live/info') return send(200, { ok: true, ...(await liveInfo()) })
+      if (route === '/live/size' && method === 'POST') {
+        const b = await readBody()
+        const port = await livePort()
+        if (!port) return send(503, { ok: false, error: 'browser not running' })
+        return send(200, await setViewport(b.w, b.h))
+      }
       if (route === '/live/click' && method === 'POST') {
         const b = await readBody()
         const x = Number(b.x), y = Number(b.y)
