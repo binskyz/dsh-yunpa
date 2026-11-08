@@ -119,6 +119,12 @@ for (let round = 1; round <= ROUNDS; round++) {
   const wheel = await json('/live/scroll', { method: 'POST', body: JSON.stringify({ dy: 400 }) })
   rec(round, '滚轮转发', wheel.body?.ok === true, JSON.stringify(wheel.body).slice(0, 60))
 
+  // 4c) 站点表：抽屉里的站点下拉靠它（用既有的 /sites）
+  const siteRes = await json('/sites')
+  const siteKeys = Object.keys(siteRes.body?.sites || {})
+  rec(round, '站点表 /sites', siteRes.body?.ok === true && siteKeys.length > 0,
+    siteKeys.join(',') || '空')
+
   // 5) 视口跟随面板尺寸：尺寸随请求参数走，截出来就该是这个大小
   // （Emulation 覆盖是会话级的，所以每帧都得在同一个会话里重设 —— 这是 /live.size 单一接口做不到的）
   const target = round % 2 === 0 ? { w: 420, h: 560 } : { w: 480, h: 600 }

@@ -116,6 +116,14 @@ export function createApi() {
         }
       }
       if (route === '/live/info') return send(200, { ok: true, ...(await liveInfo()) })
+      if (route === '/live/sites') {
+        return send(200, {
+          ok: true,
+          sites: Object.entries(SITES).map(([key, cfg]) => ({
+            key, marker: cfg.marker || key, login: cfg.login || '', probe: cfg.probe || '',
+          })),
+        })
+      }
       if (route === '/live/size' && method === 'POST') {
         const b = await readBody()
         const port = await livePort()

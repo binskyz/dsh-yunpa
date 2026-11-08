@@ -38,6 +38,11 @@ window.__ModuleLoader__.load({
 .yunpa-dock-shot{flex:0 0 auto;overflow:hidden;border-radius:10px;border:.5px solid var(--dsw-alias-border-l2);line-height:0;background:#111}
 .yunpa-dock-shot img{width:100%;height:auto;display:block;cursor:crosshair}
 .yunpa-dock-empty{min-height:180px;display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;text-align:center;font-size:12px;color:var(--dsw-alias-label-tertiary);padding:0 10px}
+.yunpa-dock-nav{display:flex;gap:6px;align-items:center}
+.yunpa-dock-nav select,.yunpa-dock-nav input{font:inherit;font-size:11px;padding:5px 6px;border-radius:7px;border:1px solid #2e3036;background:#101114;color:#e6e8ee}
+.yunpa-dock-nav select{max-width:98px}
+.yunpa-dock-nav input{flex:1;min-width:0}
+.yunpa-dock-nav input::placeholder{color:#6b6f7a}
 .yunpa-dock-input{display:flex;gap:6px}
 .yunpa-dock-input input{flex:1;min-width:0;font:inherit;font-size:12px;padding:6px 8px;border-radius:7px;border:1px solid #2e3036;background:#101114;color:#e6e8ee}
 .yunpa-dock-input input::placeholder{color:#737783}
@@ -314,6 +319,9 @@ window.__ModuleLoader__.load({
       const [note, setNote] = useState('')
       const [text, setText] = useState('')
       const [frame, setFrame] = useState({ w: 0, h: 0 })
+      const [sites, setSites] = useState([])
+      const [addr, setAddr] = useState('')
+      const [broken, setBroken] = useState(false)
       const imgRef = React.useRef(null)
       const shotRef = React.useRef(null)
 
@@ -445,6 +453,17 @@ window.__ModuleLoader__.load({
       })
 
       useEffect(() => { try { localStorage.setItem(DOCK_KEY, open ? '1' : '0') } catch {} }, [open])
+
+      // 站点表：下拉里能直接跳登录页。走既有的 /sites（设置页「站点」页签用的同一份），
+      // 不新增 host 路由——host 半身改了要重启，能复用就别加。
+      useEffect(() => {
+        get('/sites').then((j) => {
+          if (!j || !j.ok || !j.sites) return
+          setSites(Object.entries(j.sites).map(([key, c]) => ({
+            key, marker: (c && c.marker) || key, login: (c && c.login) || '',
+          })))
+        }).catch(() => {})
+      }, [])
 
       // 窗口缩小后把面板拉回可见范围，避免拖到屏幕外找不回来
       useEffect(() => {
@@ -664,13 +683,53 @@ window.__ModuleLoader__.load({
           h('button', { onPointerDown: stopDrag, onClick: () => setLive((v) => !v), title: live ? '暂停刷新' : '继续刷新' }, live ? '暂停' : '继续'),
           h('button', { onPointerDown: stopDrag, onClick: () => setOpen(false), title: '收起' }, '收起'),
         ),
+        h('div', { className: 'yunpa-dock-nav' },
+          h('select', {
+            value: '', title: '跳到该站点登录页',
+            onChange: async (e) => {
+              const key = e.target.value
+              const s = sites.find((x) => x.key === key)
+              e.target.value = ''
+              if (!s || !s.login) return
+              await act('/live/nav', { url: s.login })
+              setBroken(false)
+              setTick((n) => n + 1)
+            },
+          },
+            h('option', { value: '' }, '站点'),
+            sites.map((s) => h('option', { key: s.key, value: s.key }, s.marker)),
+          ),
+          h('input', {
+            value: addr, placeholder: 'https://…（回车跳转）',
+            onChange: (e) => setAddr(e.target.value),
+            onKeyDown: async (e) => {
+              if (e.key !== 'Enter' || !addr.trim()) return
+              const url = /^https?:\/\//i.test(addr.trim()) ? addr.trim() : 'https://' + addr.trim()
+              await act('/live/nav', { url })
+              setAddr('')
+              setBroken(false)
+              setTick((n) => n + 1)
+            },
+          }),
+          h('button', {
+            onClick: async () => {
+              if (!addr.trim()) return
+              const url = /^https?:\/\//i.test(addr.trim()) ? addr.trim() : 'https://' + addr.trim()
+              await act('/live/nav', { url })
+              setAddr('')
+              setBroken(false)
+              setTick((n) => n + 1)
+            },
+          }, '→'),
+        ),
         running
           ? h('div', { className: 'yunpa-dock-shot', ref: shotRef },
             h('img', {
               ref: imgRef, alt: '受控浏览器画面', draggable: false,
               src: '/api/yunpa/live.png?q=60&t=' + tick + (frame.w ? '&w=' + frame.w + '&h=' + frame.h : ''),
               onClick: clickShot,
-              onError: () => setRunning(false),
+              onError: () => setBroken(true),
+              onLoad: () => setBroken(false),
               style: live ? undefined : { opacity: 0.45 },
             }))
           : h('div', { className: 'yunpa-dock-empty' },
@@ -698,7 +757,7 @@ window.__ModuleLoader__.load({
           }, '发送'),
           h('button', { onClick: () => act('/live/key', { key: 'Enter' }) }, '⏎'),
         ),
-        running ? null : null,
+        broken ? h('div', { className: 'mono' }, '画面取不到：点「启动」或稍等一帧再试') : null,
         note && running ? h('div', { className: 'mono' }, note) : null,
       )
     }
