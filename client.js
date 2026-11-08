@@ -25,20 +25,22 @@ window.__ModuleLoader__.load({
 .nva .live-input{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .nva .live-input input{flex:1;min-width:160px;background:var(--dsw-alias-bg-layer-1);border:.5px solid var(--dsw-alias-border-l2);border-radius:8px;padding:7px 10px;font:inherit;font-size:13px;color:var(--dsw-alias-label-primary)}
 /* 右侧浮层抽屉（shell.overlay）：常驻可见、可收起 */
-.yunpa-dock-handle{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:60;pointer-events:auto;writing-mode:vertical-rl;letter-spacing:2px;padding:14px 5px;border-radius:10px 0 0 10px;background:var(--dsw-alias-bg-layer-1);border:.5px solid var(--dsw-alias-border-l2);border-right:0;font-size:12px;color:var(--dsw-alias-label-secondary);cursor:pointer;box-shadow:-2px 0 8px rgba(0,0,0,.12)}
-.yunpa-dock{position:fixed;right:10px;top:64px;max-height:calc(100vh - 80px);width:min(420px,42vw);z-index:61;pointer-events:auto;display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:14px;background:var(--dsw-alias-bg-layer-1);border:.5px solid var(--dsw-alias-border-l2);box-shadow:0 8px 28px rgba(0,0,0,.28);color:var(--dsw-alias-label-primary)}
+.yunpa-dock-handle{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:60;pointer-events:auto;writing-mode:vertical-rl;letter-spacing:2px;padding:14px 5px;border-radius:10px 0 0 10px;background:#17181c;border:1px solid #2e3036;border-right:0;font-size:12px;color:#c9ccd4;cursor:pointer;box-shadow:-2px 0 8px rgba(0,0,0,.24)}
+.yunpa-dock{position:fixed;right:10px;top:64px;max-height:calc(100vh - 80px);width:min(420px,42vw);z-index:61;pointer-events:auto;display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:14px;background:var(--dsw-alias-bg-layer-1);border:.5px solid var(--dsw-alias-border-l2);box-shadow:0 8px 28px rgba(0,0,0,.34);background-color:#17181c;background-image:none;backdrop-filter:none;color:var(--dsw-alias-label-primary)}
 .yunpa-dock-head{display:flex;align-items:center;gap:6px;cursor:grab;user-select:none;touch-action:none}
 .yunpa-dock-head:active{cursor:grabbing}
 .yunpa-dock-handle{touch-action:none;user-select:none}
 .yunpa-dock-title{font-size:13px;font-weight:600;white-space:nowrap}
-.yunpa-dock button{font-size:12px;padding:4px 8px;border-radius:7px;border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);color:inherit;cursor:pointer;white-space:nowrap}
+.yunpa-dock button{font-size:12px;padding:4px 8px;border-radius:7px;border:1px solid #2e3036;background:#23252b;color:inherit;cursor:pointer;white-space:nowrap}
+.yunpa-dock button:hover{background:#2b2e35}
 .yunpa-dock button.pri{background:var(--dsw-alias-state-business-primary);border-color:transparent;color:#fff}
 .yunpa-dock .mono{font-family:var(--dsw-font-mono,ui-monospace,monospace);font-size:11px;color:var(--dsw-alias-label-tertiary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .yunpa-dock-shot{flex:0 0 auto;overflow:hidden;border-radius:10px;border:.5px solid var(--dsw-alias-border-l2);line-height:0;background:#111}
 .yunpa-dock-shot img{width:100%;height:auto;display:block;cursor:crosshair}
 .yunpa-dock-empty{min-height:180px;display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;text-align:center;font-size:12px;color:var(--dsw-alias-label-tertiary);padding:0 10px}
 .yunpa-dock-input{display:flex;gap:6px}
-.yunpa-dock-input input{flex:1;min-width:0;font:inherit;font-size:12px;padding:6px 8px;border-radius:7px;border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);color:inherit}
+.yunpa-dock-input input{flex:1;min-width:0;font:inherit;font-size:12px;padding:6px 8px;border-radius:7px;border:1px solid #2e3036;background:#101114;color:#e6e8ee}
+.yunpa-dock-input input::placeholder{color:#737783}
 .nva h2{margin:0;font-size:18px;font-weight:600}
 .nva .intro{margin:0;color:var(--dsw-alias-label-tertiary);font-size:13px}
 .nva .tabs{display:flex;gap:22px;border-bottom:.5px solid var(--dsw-alias-border-l2);align-items:flex-end}
@@ -590,6 +592,38 @@ window.__ModuleLoader__.load({
         setHandleY((y) => { try { localStorage.setItem(HANDLE_KEY, String(y || 0)) } catch {}; return y })
       }
       const stopDrag = (e) => { e.stopPropagation() }
+
+      // 滚轮转发：抽屉里滚 = 页面滚。React 的 onWheel 是被动监听，
+      // preventDefault 在里面无效，只能自己绑 non-passive。
+      useEffect(() => {
+        const el = shotRef.current
+        if (!el || !open) return
+        let acc = 0
+        let timer = 0
+        const onWheel = (e) => {
+          e.preventDefault()
+          acc += e.deltaY
+          if (timer) return
+          timer = setTimeout(async () => {
+            const dy = Math.round(acc)
+            acc = 0
+            timer = 0
+            if (!dy) return
+            await act('/live/scroll', { dy })
+            setTick((n) => n + 1)
+          }, 120)
+        }
+        el.addEventListener('wheel', onWheel, { passive: false })
+        return () => { el.removeEventListener('wheel', onWheel); clearTimeout(timer) }
+      }, [open, running])
+
+      // Esc 收起抽屉
+      useEffect(() => {
+        if (!open) return
+        const onKey = (e) => { if (e.key === 'Escape') setOpen(false) }
+        window.addEventListener('keydown', onKey)
+        return () => window.removeEventListener('keydown', onKey)
+      }, [open])
 
       if (!open) {
         return h('div', {

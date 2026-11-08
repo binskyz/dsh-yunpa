@@ -79,6 +79,16 @@ const json = async (path, init) => {
   try { return { status: r.status, body: JSON.parse(text) } } catch { return { status: r.status, body: text } }
 }
 
+// 自检前确保受控浏览器在跑（check-all 会把它关掉；未运行时 /live.png 故意返回 503）
+{
+  const st0 = await json('/status')
+  if (st0.body?.browser?.running !== true) {
+    console.log('浏览器未启动，先拉起来…')
+    await json('/action', { method: 'POST', body: JSON.stringify({ name: 'open' }) })
+    await new Promise((r) => setTimeout(r, 2000))
+  }
+}
+
 for (let round = 1; round <= ROUNDS; round++) {
   console.log(`\n── 第 ${round}/${ROUNDS} 轮 ──`)
 
@@ -104,6 +114,10 @@ for (let round = 1; round <= ROUNDS; round++) {
   const typed = await json('/live/type', { method: 'POST', body: JSON.stringify({ text: 'a' }) })
   rec(round, '点击 / 输入回放', click.body?.ok === true && typed.body?.ok === true,
     `click=${click.body?.ok} type=${typed.body?.ok}`)
+
+  // 4b) 滚轮转发：长页面全靠它
+  const wheel = await json('/live/scroll', { method: 'POST', body: JSON.stringify({ dy: 400 }) })
+  rec(round, '滚轮转发', wheel.body?.ok === true, JSON.stringify(wheel.body).slice(0, 60))
 
   // 5) 视口跟随面板尺寸：尺寸随请求参数走，截出来就该是这个大小
   // （Emulation 覆盖是会话级的，所以每帧都得在同一个会话里重设 —— 这是 /live.size 单一接口做不到的）

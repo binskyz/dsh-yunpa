@@ -155,12 +155,12 @@ await step('隐私：硬化后无外部连接', async () => {
   return '外部连接 0（拦截 ' + core.BLOCKED_HOSTS.length + ' 个 Google 后台域名）'
 })
 
-await step('设置页四页签渲染', async () => {
+await step('设置页六页签渲染（含浏览器页）', async () => {
   // 进程内跑，省一次 node 启动
   const { execFileSync } = await import('node:child_process')
   const out = execFileSync('node', ['verify-ui.mjs'], { encoding: 'utf8' })
   const okLines = (out.match(/✅/g) || []).length
-  if (okLines < 5) throw new Error('只有 ' + okLines + ' 个页签通过')
+  if (okLines < 6) throw new Error('只有 ' + okLines + ' 个页签通过')
   return okLines + ' 个页签'
 })
 
