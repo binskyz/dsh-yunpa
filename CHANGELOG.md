@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 0.10.1 — 2026-11-08
+实时画面的三处平台差异修复 + 交互补全。
+
+- **鉴权**：Electron 的 renderer 发 fetch 不带 `Origin`，原规则把它当跨站 → 面板里点击/打字全部 403 `token required`。改为「只有带跨站 `Origin` 才拦」，并由 `/status` 同源下发写操作 token 做双保险
+- **`<img>` 取图**：不再校验 `sec-fetch-*`（Electron 同样不带），只靠监听地址 + 浏览器同源策略
+- **视口**：CDP 的 `Emulation.setDeviceMetricsOverride` 是会话级的，跨连接不保留；改为在抓帧的同一会话里按 `?w=&h=` 重设，截图尺寸随面板宽度
+- 抽屉：纯色不透明背景（壁纸不再透）、滚轮转发、Esc 收起、暂停保留最后一帧
+- 自检：`verify-ui` 覆盖六个页签（补 stub 的 `useRef`）、`selfcheck-live.mjs` 跑 5 轮 35 项、`restart.mjs --verify` 一键重启并验收
+
 ## 0.10.0 — 2026-11-08
 首个公开版本。合并 0.8 / 0.9 的改动，并补齐「装得上、看得见、退得回」。
 
