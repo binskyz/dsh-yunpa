@@ -207,3 +207,92 @@ export async function threadsFromDom() {
     return r.result?.value || { count: 0, threads: [] }
   })
 }
+
+// ─────────────────────────────────────────────────────────────
+// 实时画面与坐标输入：给「浏览器」页签用（无窗口，画面走 /api/yunpa/live.png）
+// 设计取舍：不嵌 iframe（跨站会被 X-Frame-Options 挡，且拿不到受控浏览器的登录态），
+// 改成 CDP 截图 + 坐标回放，看到的和点的都是同一个页面。
+// ─────────────────────────────────────────────────────────────
+
+const liveMeta = async (send) => {
+  const r = await send('Runtime.evaluate', {
+    expression: '({ url: location.href, title: document.title })',
+    returnByValue: true,
+  })
+  return r.result?.value || { url: '', title: '' }
+}
+
+export async function liveShot({ quality = 72 } = {}) {
+  return withPage(async ({ send }) => {
+    const m = await send('Page.getLayoutMetrics')
+    const vp = m.cssLayoutViewport || {}
+    const shot = await send('Page.captureScreenshot', {
+      format: 'jpeg', quality, captureBeyondViewport: false, fromSurface: true,
+    })
+    if (!shot?.data) return { ok: false, error: 'captureScreenshot 没有返回数据' }
+    const meta = await liveMeta(send)
+    return {
+      ok: true, base64: shot.data,
+      w: Math.round(vp.clientWidth || 0), h: Math.round(vp.clientHeight || 0),
+      url: meta.url, title: meta.title,
+    }
+  })
+}
+
+export async function liveInfo() {
+  return withPage(async ({ send }) => {
+    const m = await send('Page.getLayoutMetrics')
+    const vp = m.cssLayoutViewport || {}
+    const meta = await liveMeta(send)
+    return { ok: true, ...meta, w: Math.round(vp.clientWidth || 0), h: Math.round(vp.clientHeight || 0) }
+  })
+}
+
+export async function clickAt(x, y, { button = 'left', clickCount = 1 } = {}) {
+  return withPage(async ({ send }) => {
+    const px = Math.round(x), py = Math.round(y)
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: px, y: py, button: 'none', buttons: 0 })
+    await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: px, y: py, button, buttons: 1, clickCount })
+    await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: px, y: py, button, buttons: 0, clickCount })
+    return { ok: true, x: px, y: py }
+  })
+}
+
+export async function typeText(text) {
+  return withPage(async ({ send }) => {
+    if (!text) return { ok: true, typed: 0 }
+    await send('Input.insertText', { text: String(text) })
+    return { ok: true, typed: String(text).length }
+  })
+}
+
+const KEYMAP = {
+  Enter: { key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13, text: '\r' },
+  Tab: { key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9, nativeVirtualKeyCode: 9 },
+  Escape: { key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 },
+  Backspace: { key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8, nativeVirtualKeyCode: 8 },
+  ArrowDown: { key: 'ArrowDown', code: 'ArrowDown', windowsVirtualKeyCode: 40, nativeVirtualKeyCode: 40 },
+  ArrowUp: { key: 'ArrowUp', code: 'ArrowUp', windowsVirtualKeyCode: 38, nativeVirtualKeyCode: 38 },
+  ArrowLeft: { key: 'ArrowLeft', code: 'ArrowLeft', windowsVirtualKeyCode: 37, nativeVirtualKeyCode: 37 },
+  ArrowRight: { key: 'ArrowRight', code: 'ArrowRight', windowsVirtualKeyCode: 39, nativeVirtualKeyCode: 39 },
+}
+
+export async function pressKey(key) {
+  const k = KEYMAP[key]
+  if (!k) return { ok: false, error: '不支持的键：' + key }
+  return withPage(async ({ send }) => {
+    await send('Input.dispatchKeyEvent', { type: 'keyDown', ...k })
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', ...k })
+    return { ok: true, key }
+  })
+}
+
+export async function scrollBy(dy, x = 200, y = 200) {
+  return withPage(async ({ send }) => {
+    await send('Input.dispatchMouseEvent', {
+      type: 'mouseWheel', x: Math.round(x), y: Math.round(y),
+      deltaX: 0, deltaY: Math.round(dy), pointerType: 'mouse',
+    })
+    return { ok: true, dy }
+  })
+}

@@ -2,6 +2,8 @@
 // 只有本机 webServer 会注册它；数据全部来自本机加密库与浏览器，不外发。
 import { loadVault, saveVault, probeSite, SITES, ROOT, VAULT, CFT_EXE, livePort, closeBrowser, launchBrowser, audit, crash, loadSites, saveSites } from './core.js'
 import { listLogins } from './edge_creds.js'
+// 实时画面与坐标回放：让侧边栏面板里能看、能点，不必弹独立窗口
+import { liveShot, liveInfo, clickAt, typeText, pressKey, scrollBy } from './browser.js'
 import { randomBytes } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -50,6 +52,10 @@ export function createApi() {
       req.on('data', (c) => { raw += c; if (raw.length > 1e6) req.destroy() })
       req.on('end', () => { try { resolve(raw ? JSON.parse(raw) : {}) } catch { resolve({}) } })
     })
+    const sendBin = (status, buf, type) => {
+      res.writeHead(status, { 'content-type': type, 'cache-control': 'no-store', 'content-length': buf.length })
+      res.end(buf)
+    }
 
     // 只认同源页面或带 token 的本机 CLI；跨站网页一律 403
     const origin = req.headers.origin
@@ -90,6 +96,51 @@ export function createApi() {
         const lim = Math.min(200, Number(url.searchParams.get('limit') || 50) || 50)
         const lines = raw.trim().split(String.fromCharCode(10)).filter(Boolean).slice(-lim)
         return send(200, { ok: true, entries: lines.map((l) => { try { return JSON.parse(l) } catch { return null } }).filter(Boolean) })
+      }
+      // ── 实时画面：面板里内嵌「浏览器」，不弹独立窗口 ──
+      if (route === '/live.png') {
+        // <img> 同源请求会带 sec-fetch-site: same-origin；本机其它进程读不到画面
+        const sameSite = (req.headers['sec-fetch-site'] || '') === 'same-origin'
+        if (!sameSite && !cliOk) return sendBin(403, Buffer.from('forbidden'), 'text/plain')
+        try {
+          // 浏览器没起时不要为了抓帧把它拉起来（withPage 会自动 launch）
+          const livePortNow = await livePort()
+          if (!livePortNow) return sendBin(503, Buffer.from('browser not running'), 'text/plain')
+          const s = await liveShot({ quality: Number(url.searchParams.get('q') || 72) || 72 })
+          if (!s.ok) return sendBin(502, Buffer.from(String(s.error || 'shot failed')), 'text/plain')
+          return sendBin(200, Buffer.from(s.base64, 'base64'), 'image/jpeg')
+        } catch (e) {
+          return sendBin(502, Buffer.from(String(e?.message || e)), 'text/plain')
+        }
+      }
+      if (route === '/live/info') return send(200, { ok: true, ...(await liveInfo()) })
+      if (route === '/live/click' && method === 'POST') {
+        const b = await readBody()
+        const x = Number(b.x), y = Number(b.y)
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return send(400, { ok: false, error: 'need x/y' })
+        await audit('live-click', { x: Math.round(x), y: Math.round(y) })
+        return send(200, await clickAt(x, y, { clickCount: Number(b.clickCount) || 1 }))
+      }
+      if (route === '/live/type' && method === 'POST') {
+        const b = await readBody()
+        return send(200, await typeText(String(b.text || '').slice(0, 2000)))
+      }
+      if (route === '/live/key' && method === 'POST') {
+        const b = await readBody()
+        return send(200, await pressKey(String(b.key || 'Enter')))
+      }
+      if (route === '/live/scroll' && method === 'POST') {
+        const b = await readBody()
+        return send(200, await scrollBy(Number(b.dy) || 0, Number(b.x) || 200, Number(b.y) || 200))
+      }
+      if (route === '/live/nav' && method === 'POST') {
+        const b = await readBody()
+        const target = String(b.url || '').trim()
+        if (!/^https?:\/\//i.test(target)) return send(400, { ok: false, error: 'need http(s) url' })
+        const core = await import('./core.js')
+        await core.goto(target)
+        await audit('live-nav', { url: target.slice(0, 200) })
+        return send(200, { ok: true, url: target })
       }
       if (route === '/status') {
         const v = await loadVault()

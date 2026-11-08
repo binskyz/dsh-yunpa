@@ -10,6 +10,7 @@
 - **`install.mjs`**：一条命令体检/修复「包目录 + dependencies + bundles + 目录联接 + cordis 条目」；`--check` 只读、`--force` 才动实体副本
 - **`recover.mjs`**：崩溃还原（注释挂载 / `--purge` 改名 / `--restore` 回滚），刻意不 import `core.js`
 - `check-all.mjs` 13 项（新增「插件页可见性」），`after-restart.mjs` 版本比对不再写死
+- **实时画面**：`/api/yunpa/live.{png,info,click,type,key,scroll,nav}` + 右边缘浮层抽屉（`shell.overlay`），受控浏览器画面嵌在界面里，可拖动、可收起、位置记忆，agent 的每一步操作实时可见
 - 首次公开：`CONTRIBUTING.md`、`SECURITY.md`、`docs/发布清单.md`，以及 GitHub issue 表单、PR 模板、CI 与 Release 工作流
 
 ## 0.7.0 — 2026-11-07

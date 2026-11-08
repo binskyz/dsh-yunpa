@@ -11,7 +11,7 @@ DeepSeek Harness（DSH）插件：**本地加密凭据库 + 无头浏览器登�
 ## 安装
 
 ```bash
-git clone https://github.com/OWNER/dsh-yunpa.git
+git clone https://github.com/binskyz/dsh-yunpa.git
 cd dsh-yunpa
 node install.mjs            # 登记 dependencies + bundles + 目录联接 + cordis 条目（幂等，改前备份）
 node install.mjs --check    # 只体检：八项，缺什么直接告诉你

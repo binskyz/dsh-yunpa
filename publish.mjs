@@ -48,7 +48,7 @@ const pkg = JSON.parse(readFileSync(ROOT + '/package.json', 'utf8'))
 const VERSION = pkg.version
 
 // 会把占位换成真实用户名的文件
-const PLACEHOLDER_FILES = ['package.json', '.github/ISSUE_TEMPLATE/config.yml', 'docs/发布清单.md']
+const PLACEHOLDER_FILES = ['package.json', '.github/ISSUE_TEMPLATE/config.yml', 'README.md', 'README.en.md', 'docs/发布清单.md']
 
 async function api(path, init = {}) {
   const res = await fetch('https://api.github.com' + path, {
@@ -203,7 +203,8 @@ try {
   warn(`tag v${VERSION} 已存在，跳过`)
 } catch {
   git(['tag', '-a', `v${VERSION}`, '-m', `dsh-yunpa ${VERSION}`])
-  git(['push', 'origin', `v${VERSION}`])
+  // remote 在第 6 步已被改回不含 token 的地址，这里直接用带 token 的 URL 推这一次
+  git(['push', `https://x-access-token:${TOKEN}@github.com/${FULL}.git`, `v${VERSION}`])
   ok(`v${VERSION} 已推送（Release 工作流会自动跑）`)
 }
 
