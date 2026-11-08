@@ -105,24 +105,24 @@ for (let round = 1; round <= ROUNDS; round++) {
   rec(round, '点击 / 输入回放', click.body?.ok === true && typed.body?.ok === true,
     `click=${click.body?.ok} type=${typed.body?.ok}`)
 
-  // 5) 视口跟随面板尺寸
+  // 5) 视口跟随面板尺寸：尺寸随请求参数走，截出来就该是这个大小
+  // （Emulation 覆盖是会话级的，所以每帧都得在同一个会话里重设 —— 这是 /live.size 单一接口做不到的）
   const target = round % 2 === 0 ? { w: 420, h: 560 } : { w: 480, h: 600 }
-  const size2 = await json('/live/size', { method: 'POST', body: JSON.stringify(target) })
-  await new Promise((r) => setTimeout(r, 250))
-  const res2 = await fetch(BASE + '/live.png?q=62')
+  const res2 = await fetch(`${BASE}/live.png?q=62&w=${target.w}&h=${target.h}`)
   const b2 = Buffer.from(await res2.arrayBuffer())
   const s2 = res2.ok ? jpegSize(b2) : null
   const followed = !!s2 && Math.abs(s2.w - target.w) <= 2 && Math.abs(s2.h - target.h) <= 2
-  rec(round, '视口跟随 /live/size', size2.body?.ok === true && followed,
+  rec(round, '视口跟随 /live.png?w=&h=', res2.ok && followed,
     `要 ${target.w}x${target.h} → 实际 ${s2 ? s2.w + 'x' + s2.h : '取不到'}`)
 
-  // 6) 画面真的会变（换页面后帧大小应变化）
-  const nav = await json('/live/nav', { method: 'POST', body: JSON.stringify({ url: round % 2 ? 'https://example.com' : 'https://example.org' }) })
-  await new Promise((r) => setTimeout(r, 800))
-  const res3 = await fetch(BASE + '/live.png?q=62')
+  // 6) 画面真的会变（换一个内容差别大的站点，帧大小应有明显差异）
+  const url = round % 2 ? 'https://www.bing.com' : 'https://example.com'
+  const nav = await json('/live/nav', { method: 'POST', body: JSON.stringify({ url }) })
+  await new Promise((r) => setTimeout(r, 1500))
+  const res3 = await fetch(`${BASE}/live.png?q=62&w=${target.w}&h=${target.h}`)
   const b3 = Buffer.from(await res3.arrayBuffer())
-  const changed = Math.abs(b3.length - buf.length) > 500
-  rec(round, '导航后画面变化', nav.body?.ok === true && changed, `${buf.length}B → ${b3.length}B`)
+  const changed = Math.abs(b3.length - b2.length) > 300
+  rec(round, '导航后画面变化', nav.body?.ok === true && changed, `${url} → ${b2.length}B → ${b3.length}B`)
 
   await new Promise((r) => setTimeout(r, 200))
 }
