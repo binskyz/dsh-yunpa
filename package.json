@@ -1,0 +1,76 @@
+{
+  "name": "dsh-yunpa",
+  "version": "0.10.0",
+  "private": true,
+  "type": "module",
+  "description": "DSH 插件：本地加密凭据库 + 无头浏览器登录态 + 带登录态抓取（贴吧/NGA/Pixiv/书屋），含浏览器密码迁移与设置页",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": []
+    }
+  },
+  "license": "MIT",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "cookies",
+    "login",
+    "browser-automation",
+    "cdp",
+    "credential-vault"
+  ],
+  "engines": {
+    "node": ">=22.19"
+  },
+  "files": [
+    "index.js",
+    "core.js",
+    "api.js",
+    "browser.js",
+    "client.js",
+    "cli.js",
+    "edge_creds.js",
+    "edge-keyfill.js",
+    "pwmigrate.js",
+    "upgrade.mjs",
+    "check-all.mjs",
+    "smoke.mjs",
+    "cordis.patch.yml",
+    "README.md",
+    "README.en.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "locale",
+    "icon.svg",
+    "install.mjs"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/binskyz/dsh-yunpa.git"
+  },
+  "bugs": {
+    "url": "https://github.com/binskyz/dsh-yunpa/issues"
+  },
+  "homepage": "https://github.com/binskyz/dsh-yunpa#readme",
+  "scripts": {
+    "check": "node check-all.mjs",
+    "smoke": "node smoke.mjs",
+    "upgrade": "node upgrade.mjs",
+    "install": "node install.mjs",
+    "check:install": "node install.mjs --check"
+  },
+  "icon": "./icon.svg"
+}

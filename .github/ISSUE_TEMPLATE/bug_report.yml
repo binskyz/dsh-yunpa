@@ -1,0 +1,116 @@
+name: Bug 报告
+description: 插件报错、自检红项、登录态抓不到、设置页异常
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **贴之前先脱敏**：cookie 值、账号、密码、真实姓名、学校/单位名一律删掉。
+        自检输出请贴完整 13 行，不要只贴最后一行。
+
+  - type: input
+    id: plugin-version
+    attributes:
+      label: 插件版本
+      description: 设置 → 云爬 → 概览里的版本号，或 `node -p "require('./package.json').version"`
+      placeholder: "0.10.0"
+    validations:
+      required: true
+
+  - type: input
+    id: dsh-version
+    attributes:
+      label: DSH 版本
+      description: 设置 → 关于里的版本号
+      placeholder: "0.2.1-rc.5"
+    validations:
+      required: true
+
+  - type: input
+    id: node-version
+    attributes:
+      label: Node 版本
+      description: 终端里跑 `node -v`
+      placeholder: "v22.19.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: 系统
+      options:
+        - Windows 11
+        - Windows 10
+        - 其它（在正文里写明）
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: 出问题的部分
+      multiple: true
+      options:
+        - 安装 / 插件页看不见
+        - 登录态（auth_login / auth_capture）
+        - 抓取（auth_fetch / 楼层提取）
+        - 凭据库（auth_vault / 密码库）
+        - 浏览器动作（browser_*）
+        - 设置页 UI
+        - 自检脚本本身
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 从「干净的 DSH」开始，写到出错那一步。能稳定重现才算数。
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望 vs 实际
+      value: |
+        期望：
+        实际：
+    validations:
+      required: true
+
+  - type: textarea
+    id: check-all
+    attributes:
+      label: node check-all.mjs 的完整输出
+      description: 13 项全部贴上来，红的那几行最关键
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 相关日志（已脱敏）
+      description: |
+        ~/.dsh/private/yunpa/crash.jsonl 的最后几条，或设置 → 云爬 → 诊断里的报错。
+        有 cookie 的行整行删掉再贴。
+      render: shell
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: 确认
+      options:
+        - label: 我已经跑过 `node install.mjs --check`，并且贴的是最新输出
+          required: true
+        - label: 我已经删掉了所有 cookie / 账号 / 密码 / 真实姓名字面量
+          required: true
+        - label: 这不是「插件页看不见云爬」——那种情况先看 docs 里的安装段
+          required: true

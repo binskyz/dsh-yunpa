@@ -1,0 +1,14 @@
+# 统一换行：仓库里一律 LF，Windows 侧只对批处理保留 CRLF
+* text=auto eol=lf
+
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# 二进制与产物不做换行/差异转换
+*.png binary
+*.jpg binary
+*.webp binary
+*.svg text
+*.tgz binary
+*.zip binary

@@ -1,0 +1,64 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 要发的版本号（不带 v，例如 0.10.0）
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: 打包并发布
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 版本一致性（tag 必须等于 package.json 的 version）
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$pkg" ]; then
+            echo "tag $tag 与 package.json $pkg 不一致"; exit 1
+          fi
+          echo "版本一致：$pkg"
+
+      - name: 发布前验收
+        shell: bash
+        run: |
+          node verify-release.mjs
+          node .github/scripts/check-templates.mjs
+          # 占位符必须全部换成真实用户名，否则元数据与 issue 模板里是死链
+          # 只查会渲染成链接的文件；docs/发布清单.md 里的 OWNER 是示例命令，不算
+          if grep -n "github.com/OWNER\|github.com/OWNER" package.json .github/ISSUE_TEMPLATE/config.yml README.md README.en.md 2>/dev/null; then
+            echo "还有 OWNER 占位没替换（见 docs/发布清单.md 第一节）"
+            exit 1
+          fi
+          echo "占位符已全部替换"
+
+      - name: 打 tgz
+        shell: bash
+        run: npm pack
+
+      - name: 建 Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -la *.tgz
+          gh release create "${GITHUB_REF_NAME}" ./*.tgz \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes

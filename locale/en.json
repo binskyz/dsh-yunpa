@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Yunpa",
+    "description": "Local encrypted credential vault, headless-browser login state, and authenticated page fetching (Tieba / NGA / Pixiv / book sites), with browser password migration and a settings page."
+  }
+}

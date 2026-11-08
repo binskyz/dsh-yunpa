@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: 发布验收（Windows / Node 22）
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # 本包不依赖任何 npm 运行时包：node_modules 里只有 DSH 注入的东西，CI 不装依赖。
+      - name: 确认没有意外依赖
+        shell: bash
+        run: |
+          node -e "const p=require('./package.json');const d=Object.keys(p.dependencies||{});if(d.length){console.error('意外的运行时依赖:',d);process.exit(1)}console.log('无运行时依赖')"
+
+      - name: 语法检查
+        shell: bash
+        run: |
+          for f in *.js *.mjs; do node --check "$f" || exit 1; done
+          for f in .github/scripts/*.mjs; do node --check "$f" || exit 1; done
+          echo "语法检查通过"
+
+      - name: 发布验收（8 项）
+        shell: bash
+        run: node verify-release.mjs
+
+  templates:
+    name: 模板与文档（Linux）
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 模板体检
+        run: node .github/scripts/check-templates.mjs
+
+      - name: 文档链接体检
+        run: node .github/scripts/check-doc-links.mjs

@@ -1,0 +1,5 @@
+# dsh-yunpa 的挂载补丁（跟随本包一起分发）
+- insert:
+    - id: yunpa
+      name: 'dsh-yunpa'
+      config: {}

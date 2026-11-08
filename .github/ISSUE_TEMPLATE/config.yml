@@ -1,0 +1,10 @@
+# 提问前先贴这个
+# 这里只放「去哪问」的入口；具体表单在 bug_report.yml / feature_request.yml。
+blank_issues_enabled: false
+contact_links:
+  - name: 装好了但插件页看不见「云爬」
+    url: https://github.com/binskyz/dsh-yunpa#安装
+    about: 这是 dependencies / bundles 少写一件的典型症状，先跑 node install.mjs --check，再决定要不要开 issue。
+  - name: 使用问题（怎么登某个站、怎么抓楼层）
+    url: https://github.com/binskyz/dsh-yunpa/blob/main/docs/commands.md
+    about: 命令表在 docs/commands.md，粘贴一个例子就能对上。

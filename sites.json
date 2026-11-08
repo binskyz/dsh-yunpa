@@ -1,0 +1,26 @@
+{
+  "tieba": {
+    "domain": ".baidu.com",
+    "login": "https://passport.baidu.com/v2/?login",
+    "probe": "https://tieba.baidu.com/",
+    "marker": "贴吧"
+  },
+  "nga": {
+    "domain": "nga.cn",
+    "login": "https://bbs.nga.cn/nuke.php?func=login",
+    "probe": "https://bbs.nga.cn/",
+    "marker": "NGA"
+  },
+  "pixiv": {
+    "domain": ".pixiv.net",
+    "login": "https://accounts.pixiv.net/login.php",
+    "probe": "https://www.pixiv.net/",
+    "marker": "pixiv"
+  },
+  "alicesw": {
+    "domain": "alicesw.com",
+    "login": "https://www.alicesw.com/user/user/login.html",
+    "probe": "https://www.alicesw.com/",
+    "marker": "爱丽丝"
+  }
+}
