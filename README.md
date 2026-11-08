@@ -10,6 +10,16 @@ DeepSeek Harness（DSH）插件：**本地加密凭据库 + 无头浏览器登�
 
 ## 安装
 
+**从 npm（推荐）**
+
+```bash
+dsh plugin add dsh-yunpa
+```
+
+装完重启 DSH → 设置里出现「**云爬**」，左侧栏多一个云图标。
+
+**从源码（改代码时用）**
+
 ```bash
 git clone https://github.com/binskyz/dsh-yunpa.git
 cd dsh-yunpa

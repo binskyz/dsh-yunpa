@@ -1,7 +1,6 @@
 {
   "name": "dsh-yunpa",
-  "version": "0.10.1",
-  "private": true,
+  "version": "0.10.2",
   "type": "module",
   "description": "DSH 插件：本地加密凭据库 + 无头浏览器登录态 + 带登录态抓取（贴吧/NGA/Pixiv/书屋），含浏览器密码迁移与设置页",
   "main": "./index.js",
@@ -55,7 +54,15 @@
     "LICENSE",
     "locale",
     "icon.svg",
-    "install.mjs"
+    "install.mjs",
+    "recover.mjs",
+    "publish.mjs",
+    "selfcheck-live.mjs",
+    "restart.mjs",
+    "sites.json",
+    "SECURITY.md",
+    "CONTRIBUTING.md",
+    "docs"
   ],
   "repository": {
     "type": "git",
@@ -69,8 +76,13 @@
     "check": "node check-all.mjs",
     "smoke": "node smoke.mjs",
     "upgrade": "node upgrade.mjs",
-    "install": "node install.mjs",
-    "check:install": "node install.mjs --check"
+    "check:install": "node install.mjs --check",
+    "prepublishOnly": "node verify-release.mjs",
+    "setup": "node install.mjs"
   },
-  "icon": "./icon.svg"
+  "icon": "./icon.svg",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
 }

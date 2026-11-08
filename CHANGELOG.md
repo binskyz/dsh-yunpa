@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.10.2 — 2026-11-08
+发布到 npm 后的两处修正。
+
+- `scripts.install` 改名 `scripts.setup`：npm 会把 `install` 当成安装钩子，别人 `npm i dsh-yunpa` 时会自动执行它去改自己的 profile——这不是包该干的事
+- README 增加 npm 安装方式（`dsh plugin add dsh-yunpa`），`files` 补全到 37 个文件（docs / SECURITY / recover / publish / selfcheck / restart）
+
 ## 0.10.1 — 2026-11-08
 实时画面的三处平台差异修复 + 交互补全。
 
