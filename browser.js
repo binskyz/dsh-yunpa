@@ -222,8 +222,17 @@ const liveMeta = async (send) => {
   return r.result?.value || { url: '', title: '' }
 }
 
-export async function liveShot({ quality = 72 } = {}) {
+export async function liveShot({ quality = 72, w = 0, h = 0 } = {}) {
   return withPage(async ({ send }) => {
+    // 每次抓帧都是新的 CDP 会话，Emulation 覆盖不跨会话保留，
+    // 所以视口必须在这一帧里重设，否则截图永远是窗口原始尺寸。
+    const want = { w: Math.round(Number(w) || 0), h: Math.round(Number(h) || 0) }
+    if (want.w >= 200 && want.h >= 160) {
+      await send('Emulation.setDeviceMetricsOverride', {
+        width: Math.min(3840, want.w), height: Math.min(2400, want.h),
+        deviceScaleFactor: 1, mobile: false,
+      })
+    }
     const m = await send('Page.getLayoutMetrics')
     const vp = m.cssLayoutViewport || {}
     const shot = await send('Page.captureScreenshot', {

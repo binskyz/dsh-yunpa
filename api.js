@@ -57,14 +57,13 @@ export function createApi() {
       res.end(buf)
     }
 
-    // 只认同源页面或带 token 的本机 CLI；跨站网页一律 403
+    // 只认本机同源页面。注意 Electron 的 renderer 发 fetch 时常常不带 Origin，
+    // 所以「没有 Origin」不能当成跨站——能连到 127.0.0.1 这个端口的本来就只有本机。
     const origin = req.headers.origin
     const host = req.headers.host
     const sameOrigin = !origin || origin === 'http://' + host || origin === 'https://' + host
     const cliOk = req.headers['x-yunpa-token'] === expected
-    if (!sameOrigin) return send(403, { ok: false, error: 'cross-origin blocked' })
-    // 页面内 fetch 会带同源 Origin 或 sec-fetch-site；无 Origin 的裸请求（curl/CLI）写操作要 token
-    if (!origin && method !== 'GET' && !cliOk) return send(403, { ok: false, error: 'token required' })
+    if (origin && !sameOrigin) return send(403, { ok: false, error: 'cross-origin blocked' })
     if (method === 'OPTIONS') return send(204, {})
 
     try {
@@ -105,7 +104,11 @@ export function createApi() {
           // 浏览器没起时不要为了抓帧把它拉起来（withPage 会自动 launch）
           const livePortNow = await livePort()
           if (!livePortNow) return sendBin(503, Buffer.from('browser not running'), 'text/plain')
-          const s = await liveShot({ quality: Number(url.searchParams.get('q') || 72) || 72 })
+          const s = await liveShot({
+            quality: Number(url.searchParams.get('q') || 72) || 72,
+            w: Number(url.searchParams.get('w') || 0) || 0,
+            h: Number(url.searchParams.get('h') || 0) || 0,
+          })
           if (!s.ok) return sendBin(502, Buffer.from(String(s.error || 'shot failed')), 'text/plain')
           return sendBin(200, Buffer.from(s.base64, 'base64'), 'image/jpeg')
         } catch (e) {
@@ -153,6 +156,8 @@ export function createApi() {
         const sites = new Set([...Object.keys(v.cookies), ...Object.keys(v.accounts)].map((k) => k.replace(/__updated$/, '')))
         return send(200, {
           ok: true,
+          // 同源页面拿一份 token，写操作带上它就能绕开「Origin 缺失」的平台差异
+          token: expected,
           browser: { running: !!port, port, exe: CFT_EXE },
           paths: { root: ROOT, vault: VAULT },
           sites: [...sites].map((s) => ({

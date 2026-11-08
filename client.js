@@ -73,10 +73,14 @@ window.__ModuleLoader__.load({
       document.head.appendChild(tag)
     }
 
-    const get = (p) => fetch(API + p, { headers: { accept: 'application/json' } }).then((r) => r.json())
+    // host 会把写操作 token 随 /status 下发；带上它就不依赖 Origin 头（Electron renderer 常不带）
+    let API_TOKEN = ''
+    const get = (p) => fetch(API + p, { headers: { accept: 'application/json' } })
+      .then((r) => r.json())
+      .then((j) => { if (j && typeof j.token === 'string') API_TOKEN = j.token; return j })
     const post = (p, body) => fetch(API + p, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', ...(API_TOKEN ? { 'x-yunpa-token': API_TOKEN } : {}) },
       body: JSON.stringify(body || {}),
     }).then((r) => r.json())
 
@@ -307,7 +311,9 @@ window.__ModuleLoader__.load({
       const [info, setInfo] = useState({ w: 800, h: 600, url: '', title: '' })
       const [note, setNote] = useState('')
       const [text, setText] = useState('')
+      const [frame, setFrame] = useState({ w: 0, h: 0 })
       const imgRef = React.useRef(null)
+      const shotRef = React.useRef(null)
 
       useEffect(() => {
         let stop = false
@@ -326,6 +332,25 @@ window.__ModuleLoader__.load({
         return () => { stop = true; clearInterval(t) }
       }, [live])
 
+      // 面板宽度 → 视口宽度：截图按这个尺寸出，正好铺满且不变形
+      useEffect(() => {
+        const el = shotRef.current
+        if (!el) return
+        let lastW = 0
+        const push = () => {
+          const w = Math.round(el.getBoundingClientRect().width)
+          if (w < 200 || Math.abs(w - lastW) < 8) return
+          lastW = w
+          setFrame({ w, h: Math.round(w * 0.72) })
+          setTick((n) => n + 1)
+        }
+        let ro
+        try { ro = new ResizeObserver(push) } catch { ro = null }
+        if (ro) ro.observe(el)
+        push()
+        return () => { if (ro) ro.disconnect() }
+      }, [])
+
       const act = async (path, body) => {
         try {
           const r = await post(path, body)
@@ -339,8 +364,10 @@ window.__ModuleLoader__.load({
         if (!el) return
         const r = el.getBoundingClientRect()
         if (!r.width || !r.height) return
-        const x = Math.round(((e.clientX - r.left) / r.width) * (info.w || r.width))
-        const y = Math.round(((e.clientY - r.top) / r.height) * (info.h || r.height))
+        const vw = frame.w || info.w || r.width
+        const vh = frame.h || info.h || r.height
+        const x = Math.round(((e.clientX - r.left) / r.width) * vw)
+        const y = Math.round(((e.clientY - r.top) / r.height) * vh)
         await act('/live/click', { x, y })
         setTick((n) => n + 1)
       }
@@ -359,10 +386,10 @@ window.__ModuleLoader__.load({
           h('button', { className: 'act', onClick: () => setLive((v) => !v) }, live ? '暂停' : '继续'),
           h('span', { className: 'mono live-url', title: info.url || '' }, info.title || info.url || '未启动'),
         ),
-        h('div', { className: 'live-shot' },
+        h('div', { className: 'live-shot', ref: shotRef },
           h('img', {
             ref: imgRef, alt: '受控浏览器画面', draggable: false,
-            src: live ? '/api/yunpa/live.png?q=62&t=' + tick : undefined,
+            src: '/api/yunpa/live.png?q=62&t=' + tick + (frame.w ? '&w=' + frame.w + '&h=' + frame.h : ''),
             onClick: clickAt,
             style: live ? undefined : { opacity: 0.4 },
           }),
@@ -403,6 +430,7 @@ window.__ModuleLoader__.load({
       const dockRef = React.useRef(null)
       const dragRef = React.useRef(null)
       const handleDrag = React.useRef(null)
+      const [frame, setFrame] = useState({ w: 0, h: 0 })
       // 位置：null = 默认贴右侧；有值则是拖动后的 {x,y,w,h}
       const [pos, setPos] = useState(() => {
         try {
@@ -461,30 +489,25 @@ window.__ModuleLoader__.load({
         return () => { stop = true; clearInterval(t) }
       }, [open, live, running])
 
-      // 面板尺寸 → 受控浏览器视口：截图正好铺满抽屉，不会被拉成大片黑边
+      // 画面尺寸 → 视口：宽度跟抽屉走，高度按 16:10 派（截图就是这个比例，正好铺满）
       useEffect(() => {
         if (!open || !running) return
         const el = shotRef.current
         if (!el) return
-        let timer = 0
-        let last = { w: 0, h: 0 }
+        let lastW = 0
         const push = () => {
-          const r = el.getBoundingClientRect()
-          const w = Math.round(r.width)
-          const h = Math.round(r.height)
-          if (w < 200 || h < 160) return
-          if (Math.abs(w - last.w) < 8 && Math.abs(h - last.h) < 8) return
-          last = { w, h }
-          clearTimeout(timer)
-          timer = setTimeout(() => {
-            post('/live/size', { w, h }).then(() => setTick((n) => n + 1)).catch(() => {})
-          }, 350)
+          const w = Math.round(el.getBoundingClientRect().width)
+          if (w < 200) return
+          if (Math.abs(w - lastW) < 8) return
+          lastW = w
+          setFrame({ w, h: Math.round(w * 0.72) })
+          setTick((n) => n + 1)
         }
         let ro
         try { ro = new ResizeObserver(push) } catch { ro = null }
         if (ro) ro.observe(el)
         push()
-        return () => { if (ro) ro.disconnect(); clearTimeout(timer) }
+        return () => { if (ro) ro.disconnect() }
       }, [open, running])
 
       const act = async (path, body) => {
@@ -500,8 +523,10 @@ window.__ModuleLoader__.load({
         if (!el) return
         const r = el.getBoundingClientRect()
         if (!r.width || !r.height) return
-        const x = Math.round(((e.clientX - r.left) / r.width) * (info.w || r.width))
-        const y = Math.round(((e.clientY - r.top) / r.height) * (info.h || r.height))
+        const vw = frame.w || info.w || r.width
+        const vh = frame.h || info.h || r.height
+        const x = Math.round(((e.clientX - r.left) / r.width) * vw)
+        const y = Math.round(((e.clientY - r.top) / r.height) * vh)
         await act('/live/click', { x, y })
         setTick((n) => n + 1)
       }
@@ -609,7 +634,7 @@ window.__ModuleLoader__.load({
           ? h('div', { className: 'yunpa-dock-shot', ref: shotRef },
             h('img', {
               ref: imgRef, alt: '受控浏览器画面', draggable: false,
-              src: live ? '/api/yunpa/live.png?q=60&t=' + tick : undefined,
+              src: '/api/yunpa/live.png?q=60&t=' + tick + (frame.w ? '&w=' + frame.w + '&h=' + frame.h : ''),
               onClick: clickShot,
               onError: () => setRunning(false),
               style: live ? undefined : { opacity: 0.45 },
