@@ -62,9 +62,17 @@ let linkInfo = '不存在'
 try {
   const st = lstatSync(target)
   if (st.isSymbolicLink()) {
-    const real = realpathSync(target)
-    linkOk = resolve(real).toLowerCase() === resolve(SRC).toLowerCase()
-    linkInfo = linkOk ? '→ ' + real : '链到别处：' + real
+    // 悬空链接：目标被删了。lstat 能看到链接本身，realpath 会抛错——
+    // 这种情况最隐蔽：文件看起来「在」，加载时才炸，所以单独报出来并允许直接重连。
+    let real = null
+    try { real = realpathSync(target) } catch { real = null }
+    if (real === null) {
+      linkOk = false
+      linkInfo = '悬空链接（指向的目标已不存在）→ 会自动重连'
+    } else {
+      linkOk = resolve(real).toLowerCase() === resolve(SRC).toLowerCase()
+      linkInfo = linkOk ? '→ ' + real : '链到别处：' + real
+    }
   } else {
     const realFile = join(target, 'package.json')
     const same = existsSync(realFile) && readJson(realFile).version === mine.version
@@ -128,8 +136,12 @@ if (!bunOk) {
 }
 
 if (!linkOk) {
-  const st = existsSync(target) ? lstatSync(target) : null
+  let st = null
+  if (existsSync(target)) st = lstatSync(target)
+  else { try { st = lstatSync(target) } catch { st = null } }   // existsSync 对悬空链接返回 false
+  const dangling = st !== null && st.isSymbolicLink() && (() => { try { realpathSync(target); return false } catch { return true } })()
   const canReplace = !st || st.isSymbolicLink() || FORCE
+  if (dangling) console.log(' · 检测到悬空链接，直接重连')
   if (canReplace) {
     if (st) {
       const bak = `${target}.bak-${Date.now()}`
