@@ -35,7 +35,7 @@ node verify-release.mjs # publish readiness
 
 - Windows only (DPAPI / icacls / PowerShell)
 - Cookies inside the controlled profile are `v10` (readable by same-user processes); use `auth_capture {wipeProfile:true}` on sensitive sites
-- Edge password DB is `v20` (App-Bound): offline decryption is impossible; the plugin drives Edge to autofill and reads the DOM instead
+- Edge passwords take two paths: `v10` entries are decrypted in-process (local DPAPI); `v20` App-Bound entries cannot be decrypted offline, so the plugin drives the browser's own autofill and reads the DOM (`auth_pw_*`). Migration copies `Login Data` and the key blobs from `Local State` into the controlled profile — that **is** a copy of the password store, deleted right after use (see [docs/安全审计.md](docs/安全审计.md))
 - CDP port binds to 127.0.0.1:9333–9336 and is reachable by any local process
 
 ## License

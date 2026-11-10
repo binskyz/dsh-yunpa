@@ -84,7 +84,7 @@ Pixiv：作品/系列页 → 正文
 
 - **Windows-only**：DPAPI / icacls / PowerShell 共享读。
 - **profile 内 cookie 是 v10**：同用户进程可解；敏感站点建议 `auth_capture {wipeProfile:true}`。
-- **Edge 密码库是 v20(App-Bound)**：离线解不开，只能"浏览器自己填 → 读 DOM"（`auth_pw_*`）。
+- **Edge 密码库有两条路**：`v10` 条目能就地解密（本机 DPAPI）；`v20` App-Bound 解不开，只能让浏览器自己填充后读 DOM（`auth_pw_*`）。迁移时会把 `Login Data` 与 `Local State` 里的密钥复制进受控 profile 供其自动填充——**等于复制了一份密码库**，用完即删（细节见 [docs/安全审计.md](docs/安全审计.md)）。
 - **CDP 调试口**只绑 127.0.0.1:9333–9336，本机任意进程可连；不用就 `auth_browser_close`。
 - 无 OS 级隔离，浏览器以你的用户权限运行。
 
