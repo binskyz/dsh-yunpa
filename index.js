@@ -25,12 +25,12 @@ const TOOLS = []
 
 TOOLS.push({
   name: 'auth_login',
-  description: '登录指定站点：browser 模式开受控 Edge 窗口让人工登录/过验证码；form 模式用凭据库账号密码自动填表提交，需要验证码时返回验证码图片路径，把码读给模型后可带 captcha 重调完成。',
+  description: '登录站点：browser=开窗人工过验证码；form=用凭据库自动填表，需验证码时带 captcha 重调。',
   parameters: OBJ({
-    site: { type: 'string', required: true, description: '站点键：tieba / nga / pixiv / alicesw，或任意域名' },
+    site: { type: 'string', required: true },
     mode: { type: 'string', enum: ['browser', 'form'], required: true },
-    captcha: { type: 'string', description: 'form 模式第一次返回 needs_captcha 后，把用户报的验证码填这里再调一次' },
-    captchaOut: { type: 'string', description: '验证码图片落盘路径，默认 .dsh-login/captcha.png' },
+    captcha: { type: 'string' },
+    captchaOut: { type: 'string' },
   }, ['site', 'mode']),
   output: OUT,
   async execute(args) {
@@ -74,9 +74,9 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'auth_captcha',
-  description: '把当前登录页上的验证码截图存成图片文件（用户看图报码用）。',
+  description: '当前页验证码截图存文件，供用户报码。',
   parameters: OBJ({
-    out: { type: 'string', description: '落盘路径，默认 .dsh-login/captcha.png' },
+    out: { type: 'string' },
   }),
   output: OUT,
   async execute(args) {
@@ -86,11 +86,10 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'auth_capture',
-  description: '把受控浏览器里已登录的 cookie 抓下来存进加密库（人工登录完成后用它）。「抓登录态」「保存 cookie」都走这里。',
   parameters: OBJ({
     site: { type: 'string', required: true },
-    close: { type: 'boolean', description: '抓完是否关掉浏览器，默认 false' },
-    wipeProfile: { type: 'boolean', description: '抓完清掉受控 profile 里的 cookie，只留加密库那份，默认 false' },
+    close: { type: 'boolean' },
+    wipeProfile: { type: 'boolean' },
   }, ['site']),
   output: OUT,
   async execute(args) {
@@ -113,7 +112,7 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'auth_browser_close',
-  description: '关掉受控浏览器窗口。',
+  description: '关闭受控浏览器。',
   parameters: OBJ({}),
   output: OUT,
   async execute() { return closeBrowser() },
@@ -121,7 +120,6 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'auth_status',
-  description: '看每个站点有没有存 cookie / 账号，并实地探一次登录态。「登录态还在吗」「都存了哪些」用它。',
   parameters: OBJ({ probe: { type: 'boolean', description: '是否真的发请求探测，默认 true' } }),
   output: OUT,
   async execute(args) {
@@ -142,15 +140,14 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'auth_fetch',
-  description: '带已保存登录态抓页面并取内容：kind=posts 时按贴吧/NGA 楼层结构提取（作者+正文），否则转纯文本；可落盘。',
   parameters: OBJ({
     site: { type: 'string', required: true },
-    url: { type: 'string', required: true, description: '单个 URL；批量时用 urls' },
-    urls: { type: 'array', items: { type: 'string' }, description: '批量抓取（最多 5 条，串行 + 间隔）' },
-    kind: { type: 'string', enum: ['text', 'posts', 'raw', 'threads'], description: '默认 text；threads=贴吧吧列表'  },
-    pages: { type: 'integer', description: '翻页数（1–20，默认 1）；贴吧用 pn=、NGA 用 page=' },
-    out: { type: 'string', description: '落盘路径（可选）' },
-    maxChars: { type: 'integer', description: '返回前 N 字符，默认 4000' },
+    url: { type: 'string', required: true },
+    urls: { type: 'array', items: { type: 'string' } },
+    kind: { type: 'string', enum: ['text', 'posts', 'raw', 'threads']  },
+    pages: { type: 'integer' },
+    out: { type: 'string' },
+    maxChars: { type: 'integer' },
   }, ['site']),
   output: OUT,
   async execute(args) {
@@ -250,7 +247,7 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'auth_vault',
-  description: '本地加密凭据库（DPAPI + AES-256-GCM）：保存/查看/删除某站账号密码。「记住这个账号密码」「凭据库里都有什么」用它。不回显明文密码。',
+  description: '加密凭据库：action=set/list/forget。不回显明文密码。',
   parameters: OBJ({
     action: { type: 'string', enum: ['set', 'list', 'forget'], required: true },
     site: { type: 'string' }, username: { type: 'string' }, password: { type: 'string' },
@@ -281,10 +278,10 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'auth_cookie',
-  description: '手工灌 cookie（F12 抄出的 BDUSS=...; STOKEN=... 那种）。「我把 cookie 复制给你」用它。',
+  description: '手工灌 cookie（F12 抄出的 BDUSS=…;STOKEN=…）。',
   parameters: OBJ({
     site: { type: 'string', required: true },
-    cookie: { type: 'string', required: true, description: '"k=v; k2=v2" 形式' },
+    cookie: { type: 'string', required: true },
   }, ['site', 'cookie']),
   output: OUT,
   async execute(args) {
@@ -341,11 +338,11 @@ import { EDGE_PROFILE as CTRL_PROFILE } from './core.js'
 
 TOOLS.push({
   name: 'auth_edge_list',
-  description: '列出 Edge 密码管理器里存的站点与账号（只回显账号和密码长度，明文不出本机进程）。「Edge 里存了哪些密码」用它。',
+  description: '列 Edge 密码库里的站点与账号（只回显账号与密码长度）。',
   parameters: OBJ({
-    browser: { type: 'string', enum: ['edge', 'chrome', 'brave'], description: '默认 edge' },
-    profile: { type: 'string', description: '默认 Default' },
-    host: { type: 'string', description: '只看某个域名片段，如 baidu' },
+    browser: { type: 'string', enum: ['edge', 'chrome', 'brave'] },
+    profile: { type: 'string' },
+    host: { type: 'string' },
   }),
   output: OUT,
   async execute(args) {
@@ -364,7 +361,6 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'auth_edge_import',
-  description: '把 Edge 主 profile 的密码库同步进受控浏览器 profile，让 Edge 自己解密/自动填充（v20 App-Bound 只能这样用）。',
   parameters: OBJ({ browser: { type: 'string', enum: ['edge', 'chrome', 'brave'] }, profile: { type: 'string' } }),
   output: OUT,
   async execute(args) {
@@ -375,10 +371,9 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'auth_edge_login',
-  description: '用 Edge 密码管理器登录站点：同步密码库 → 打开登录页 → 键盘选择第一条自动填充 → 若已填好则提交并抓 cookie。',
   parameters: OBJ({
     site: { type: 'string', required: true },
-    captcha: { type: 'string', description: '需要验证码时，二次调用填这里' },
+    captcha: { type: 'string' },
   }, ['site']),
   output: OUT,
   async execute(args) {
@@ -422,7 +417,7 @@ import { spawn as spawnP, execFile as execFileP } from 'node:child_process'
 
 TOOLS.push({
   name: 'auth_browser_install',
-  description: '装我自己的浏览器（Chrome for Testing，独立 profile，不碰你日常账号）。已装则直接返回路径。',
+  description: '安装自带 Chrome for Testing（独立 profile）。',
   parameters: OBJ({ force: { type: 'boolean', description: '重装，默认 false' } }),
   output: OUT,
   async execute(args) {
@@ -450,11 +445,10 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'auth_dump_passwords',
-  description: '把 Edge 密码管理器里的密码"转移"出来：受控浏览器打开对应登录页→触发自动填充→读 DOM 取值→存进加密库。不提交表单，明文不出本机。',
   parameters: OBJ({
-    hosts: { type: 'string', description: '逗号分隔域名片段，如 baidu,qq；空=按顺序取前 limit 条' },
-    limit: { type: 'integer', description: '最多处理几条，默认 3' },
-    csv: { type: 'string', description: '同时导出 Chrome 可导入的 CSV 到该路径（可选）' },
+    hosts: { type: 'string' },
+    limit: { type: 'integer' },
+    csv: { type: 'string' },
   }),
   output: OUT,
   async execute(args) {
@@ -476,7 +470,6 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'auth_export_csv',
-  description: '把已存凭据导出成 Chrome 可导入的 passwords.csv（在你自己的浏览器里设置→密码→导入）。',
   parameters: OBJ({ out: { type: 'string', description: '落盘路径，默认 .dsh-login/passwords.csv' } }),
   output: OUT,
   async execute(args) {
@@ -495,7 +488,6 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'auth_pw_open',
-  description: '用受控 Edge（已同步你的密码库）打开某站的登录页，留给你点一下自动填充建议。',
   parameters: OBJ({ origin: { type: 'string', required: true, description: '完整登录页 URL' } }, ['origin']),
   output: OUT,
   async execute(args) { return openForManualFill(args.origin) },
@@ -503,11 +495,10 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'auth_pw_grab',
-  description: '把当前受控窗口里已被自动填充的账号密码读出来，存进加密库（可顺带导出 Chrome 可导入的 CSV）。',
   parameters: OBJ({
-    site: { type: 'string', description: '存到哪个站点键，默认用当前页 host' },
-    csv: { type: 'string', description: '同时导出 CSV 路径（可选）' },
-    waitSec: { type: 'integer', description: '最多等多少秒等你点自动填充，默认 0=不等待' },
+    site: { type: 'string' },
+    csv: { type: 'string' },
+    waitSec: { type: 'integer' },
   }),
   output: OUT,
   async execute(args) {
@@ -539,7 +530,6 @@ const TOGGLES = { open: '浏览器没开时自动拉起可见窗口' }
 
 TOOLS.push({
   name: 'browser_open',
-  description: '打开页面（可见窗口，持久 profile，保留登录态）。companion 语义：先开→Snapshot→按 ref 操作。',
   parameters: OBJ({ url: { type: 'string', required: true } }, ['url']),
   output: OUT,
   async execute(args) {
@@ -551,10 +541,9 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'browser_snapshot',
-  description: '取页面结构快照：标题/URL/正文 + 可交互元素编号（ref=e0…），后续 click/type 用 ref 定位。密码框值永远显示 ••••。',
   parameters: OBJ({
-    maxText: { type: 'integer', description: '正文截断长度，默认 6000' },
-    maxElements: { type: 'integer', description: '元素上限，默认 120' },
+    maxText: { type: 'integer' },
+    maxElements: { type: 'integer' },
   }),
   output: OUT,
   async execute(args) { return B.snapshot({ maxText: args.maxText, maxElements: args.maxElements }) },
@@ -562,7 +551,6 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'browser_click',
-  description: '按快照里的 ref 点击元素（链接/按钮/复选框）。',
   parameters: OBJ({ ref: { type: 'string', required: true, description: '如 e3' } }, ['ref']),
   output: OUT,
   async execute(args) { return B.click(args.ref) },
@@ -570,11 +558,10 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'browser_type',
-  description: '按 ref 输入文本。密码框默认拒填（返回 password-field-refused），要填密码走 auth_fill_from_vault。',
   parameters: OBJ({
     ref: { type: 'string', required: true },
     text: { type: 'string', required: true },
-    allowPassword: { type: 'boolean', description: '仅调试用，默认 false' },
+    allowPassword: { type: 'boolean' },
   }, ['ref', 'text']),
   output: OUT,
   async execute(args) { return B.typeInto(args.ref, args.text, { allowPassword: !!args.allowPassword }) },
@@ -582,7 +569,7 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'browser_press',
-  description: '按键：Enter / Tab / Escape / ArrowDown / ArrowUp / Backspace。',
+  description: '按键：Enter/Tab/Escape/ArrowUp/ArrowDown/Backspace。',
   parameters: OBJ({ key: { type: 'string', required: true } }, ['key']),
   output: OUT,
   async execute(args) { return B.press(args.key) },
@@ -590,7 +577,6 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'browser_scroll',
-  description: '滚动：up / down / top / bottom。',
   parameters: OBJ({ dir: { type: 'string', enum: ['up', 'down', 'top', 'bottom'] } }),
   output: OUT,
   async execute(args) { return B.scroll(args.dir || 'down') },
@@ -598,7 +584,6 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'browser_get_text',
-  description: '读正文（可指定 CSS 选择器），最长 8000 字。',
   parameters: OBJ({ selector: { type: 'string', description: '可选，如 .d_post_content' } }),
   output: OUT,
   async execute(args) { return B.getText(args.selector) },
@@ -606,7 +591,6 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'browser_meta',
-  description: '当前页标题与 URL。',
   parameters: OBJ({}),
   output: OUT,
   async execute() { return B.meta() },
@@ -614,7 +598,6 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'browser_screenshot',
-  description: '截图存文件（默认 .dsh-login/page.png）。',
   parameters: OBJ({ out: { type: 'string' } }),
   output: OUT,
   async execute(args) { return B.screenshot(args.out) },
@@ -622,7 +605,6 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'browser_tabs',
-  description: '列出所有标签页（id/标题/URL）。',
   parameters: OBJ({}),
   output: OUT,
   async execute() { return B.tabs() },
@@ -630,7 +612,6 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'browser_new_tab',
-  description: '新开一个标签页并导航到指定 URL（不影响当前页的登录态）。',
   parameters: OBJ({ url: { type: 'string', required: true } }, ['url']),
   output: OUT,
   async execute(args) { return B.newTab(args.url) },
@@ -638,7 +619,6 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'browser_close_tab',
-  description: '关闭指定标签页（用 browser_tabs 拿到的 id）。',
   parameters: OBJ({ id: { type: 'string', required: true } }, ['id']),
   output: OUT,
   async execute(args) { return B.closeTab(args.id) },
@@ -646,12 +626,11 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'browser_wait',
-  description: '等条件满足：selector 出现 / url 包含 / 某站登录 cookie 就位。比 sleep 稳。',
   parameters: OBJ({
     selector: { type: 'string' },
     urlIncludes: { type: 'string' },
-    cookieSite: { type: 'string', description: '如 tieba：检测 BDUSS 是否就位' },
-    timeoutMs: { type: 'integer', description: '默认 20000' },
+    cookieSite: { type: 'string' },
+    timeoutMs: { type: 'integer' },
   }),
   output: OUT,
   async execute(args) { return B.waitFor({ selector: args.selector, urlIncludes: args.urlIncludes, cookieSite: args.cookieSite, timeoutMs: args.timeoutMs }) },
@@ -659,7 +638,6 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'browser_wait_login',
-  description: 'companion 同名的登录判定：等某站登录 cookie 出现（贴吧认 BDUSS），别用固定 sleep 猜。',
   parameters: OBJ({
     site: { type: 'string', required: true },
     timeoutMs: { type: 'integer' },
@@ -670,12 +648,12 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'auth_fill_from_vault',
-  description: '把加密库里的账号密码填进当前页表单（ref 可选，缺省自动找账号/密码框）。这是对 companion「拒填密码」的补：凭据只从本地加密库出，明文不进对话。',
+  description: '把库里的账号密码填进当前页表单（ref 可选）。',
   parameters: OBJ({
-    site: { type: 'string', required: true, description: '凭据库里的站点键' },
-    userRef: { type: 'string', description: '账号框 ref（可选）' },
-    passRef: { type: 'string', description: '密码框 ref（可选）' },
-    submit: { type: 'boolean', description: '填完是否按 Enter 提交，默认 false' },
+    site: { type: 'string', required: true },
+    userRef: { type: 'string' },
+    passRef: { type: 'string' },
+    submit: { type: 'boolean' },
   }, ['site']),
   output: OUT,
   async execute(args) {

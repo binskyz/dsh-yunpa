@@ -21,7 +21,7 @@ window.__ModuleLoader__.load({
 .nva .live-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .nva .live-url{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:420px;flex:1;min-width:120px}
 .nva .live-shot{border:.5px solid var(--dsw-alias-border-l2);border-radius:10px;overflow:hidden;background:var(--dsw-alias-bg-layer-2);line-height:0;min-height:260px;display:flex;align-items:center;justify-content:center}
-.nva .live-shot img{width:100%;height:auto;display:block;cursor:crosshair}
+.nva .live-shot img{width:100%;height:auto;display:block;cursor:crosshair;image-rendering:auto}
 .nva .live-input{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .nva .live-input input{flex:1;min-width:160px;background:var(--dsw-alias-bg-layer-1);border:.5px solid var(--dsw-alias-border-l2);border-radius:8px;padding:7px 10px;font:inherit;font-size:13px;color:var(--dsw-alias-label-primary)}
 /* 右侧浮层抽屉（shell.overlay）：常驻可见、可收起 */
@@ -36,7 +36,7 @@ window.__ModuleLoader__.load({
 .yunpa-dock button.pri{background:var(--dsw-alias-state-business-primary);border-color:transparent;color:#fff}
 .yunpa-dock .mono{font-family:var(--dsw-font-mono,ui-monospace,monospace);font-size:11px;color:var(--dsw-alias-label-tertiary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .yunpa-dock-shot{flex:0 0 auto;overflow:hidden;border-radius:10px;border:.5px solid var(--dsw-alias-border-l2);line-height:0;background:#111}
-.yunpa-dock-shot img{width:100%;height:auto;display:block;cursor:crosshair}
+.yunpa-dock-shot img{width:100%;height:auto;display:block;cursor:crosshair;image-rendering:auto}
 .yunpa-dock-empty{min-height:180px;display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;text-align:center;font-size:12px;color:var(--dsw-alias-label-tertiary);padding:0 10px}
 .yunpa-dock-nav{display:flex;gap:6px;align-items:center}
 .yunpa-dock-nav select,.yunpa-dock-nav input{font:inherit;font-size:11px;padding:5px 6px;border-radius:7px;border:1px solid #2e3036;background:#101114;color:#e6e8ee}
@@ -399,7 +399,7 @@ window.__ModuleLoader__.load({
         h('div', { className: 'live-shot', ref: shotRef },
           h('img', {
             ref: imgRef, alt: '受控浏览器画面', draggable: false,
-            src: '/api/yunpa/live.png?q=62&t=' + tick + (frame.w ? '&w=' + frame.w + '&h=' + frame.h : ''),
+            src: '/api/yunpa/live.png?fmt=webp&dpr=1.5&q=64&t=' + tick + (frame.w ? '&w=' + frame.w + '&h=' + frame.h : ''),
             onClick: clickAt,
             style: live ? undefined : { opacity: 0.4 },
           }),
@@ -726,7 +726,7 @@ window.__ModuleLoader__.load({
           ? h('div', { className: 'yunpa-dock-shot', ref: shotRef },
             h('img', {
               ref: imgRef, alt: '受控浏览器画面', draggable: false,
-              src: '/api/yunpa/live.png?q=60&t=' + tick + (frame.w ? '&w=' + frame.w + '&h=' + frame.h : ''),
+              src: '/api/yunpa/live.png?fmt=webp&dpr=1.5&q=64&t=' + tick + (frame.w ? '&w=' + frame.w + '&h=' + frame.h : ''),
               onClick: clickShot,
               onError: () => setBroken(true),
               onLoad: () => setBroken(false),

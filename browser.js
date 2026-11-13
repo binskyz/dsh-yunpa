@@ -222,26 +222,32 @@ const liveMeta = async (send) => {
   return r.result?.value || { url: '', title: '' }
 }
 
-export async function liveShot({ quality = 72, w = 0, h = 0 } = {}) {
+export async function liveShot({ quality = 72, w = 0, h = 0, dpr = 1, format = 'jpeg' } = {}) {
   return withPage(async ({ send }) => {
     // 每次抓帧都是新的 CDP 会话，Emulation 覆盖不跨会话保留，
     // 所以视口必须在这一帧里重设，否则截图永远是窗口原始尺寸。
     const want = { w: Math.round(Number(w) || 0), h: Math.round(Number(h) || 0) }
+    const scale = Math.max(1, Math.min(3, Number(dpr) || 1))
     if (want.w >= 200 && want.h >= 160) {
       await send('Emulation.setDeviceMetricsOverride', {
         width: Math.min(3840, want.w), height: Math.min(2400, want.h),
-        deviceScaleFactor: 1, mobile: false,
+        deviceScaleFactor: scale, mobile: false,
       })
     }
     const m = await send('Page.getLayoutMetrics')
     const vp = m.cssLayoutViewport || {}
-    const shot = await send('Page.captureScreenshot', {
-      format: 'jpeg', quality, captureBeyondViewport: false, fromSurface: true,
-    })
+    let shot
+    if (format === 'webp') {
+      // webp 比 jpeg 省约 30%，但老版本 headless 可能不认，失败回退 jpeg
+      shot = await send('Page.captureScreenshot', { format: 'webp', quality, captureBeyondViewport: false, fromSurface: true })
+      if (!shot?.data) shot = await send('Page.captureScreenshot', { format: 'jpeg', quality, captureBeyondViewport: false, fromSurface: true })
+    } else {
+      shot = await send('Page.captureScreenshot', { format: 'jpeg', quality, captureBeyondViewport: false, fromSurface: true })
+    }
     if (!shot?.data) return { ok: false, error: 'captureScreenshot 没有返回数据' }
     const meta = await liveMeta(send)
     return {
-      ok: true, base64: shot.data,
+      ok: true, base64: shot.data, scale,
       w: Math.round(vp.clientWidth || 0), h: Math.round(vp.clientHeight || 0),
       url: meta.url, title: meta.title,
     }

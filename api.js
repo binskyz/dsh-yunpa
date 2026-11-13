@@ -104,13 +104,19 @@ export function createApi() {
           // 浏览器没起时不要为了抓帧把它拉起来（withPage 会自动 launch）
           const livePortNow = await livePort()
           if (!livePortNow) return sendBin(503, Buffer.from('browser not running'), 'text/plain')
+          const fmt = (url.searchParams.get('fmt') || 'jpeg').toLowerCase()
           const s = await liveShot({
             quality: Number(url.searchParams.get('q') || 72) || 72,
             w: Number(url.searchParams.get('w') || 0) || 0,
             h: Number(url.searchParams.get('h') || 0) || 0,
+            dpr: Number(url.searchParams.get('dpr') || 1) || 1,
+            format: fmt === 'webp' ? 'webp' : 'jpeg',
           })
           if (!s.ok) return sendBin(502, Buffer.from(String(s.error || 'shot failed')), 'text/plain')
-          return sendBin(200, Buffer.from(s.base64, 'base64'), 'image/jpeg')
+          const head = Buffer.from(s.base64, 'base64')
+          // webp 的 RIFF 头是 "RIFF"；回退到 jpeg 时按实际内容给 content-type
+          const isWebp = head.slice(0, 4).toString('ascii') === 'RIFF'
+          return sendBin(200, head, isWebp ? 'image/webp' : 'image/jpeg')
         } catch (e) {
           return sendBin(502, Buffer.from(String(e?.message || e)), 'text/plain')
         }

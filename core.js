@@ -305,6 +305,7 @@ export async function closeBrowser() {
     try { ws.close() } catch {}
   } catch {}
   await rm(PORTFILE, { force: true }).catch(() => {})
+  stopIdleTimer()
   return { closed: !(await cdpAlive(port)), port }
 }
 
@@ -324,6 +325,27 @@ export async function pageTarget(port) {
 
 export function setCurrentTarget(id) { currentTargetId = id }
 export function getCurrentTarget() { return currentTargetId }
+
+// ── 按需启停 ────────────────────────────────────────────────
+// 浏览器是重资源（headless-shell 常驻约 150MB）。默认「谁用谁起，闲着就关」：
+// 每次 CDP 活动刷新计时，无活动 IDLE_MS 之后自动关闭。
+// 抽屉每 400ms 抓一帧 → 一直有活动 → 不会误关；收起/暂停后才开始计时。
+export const IDLE_MS = Number(process.env.DSH_YUNPA_IDLE_MS || 3 * 60 * 1000)
+let idleTimer = null
+export function touchBrowser() {
+  if (idleTimer) clearTimeout(idleTimer)
+  idleTimer = setTimeout(async () => {
+    idleTimer = null
+    const port = await livePort().catch(() => null)
+    if (!port) return
+    try { await closeBrowser() } catch { /* 关不掉就下次再关 */ }
+  }, IDLE_MS)
+  idleTimer.unref?.()
+  return IDLE_MS
+}
+export function stopIdleTimer() {
+  if (idleTimer) { clearTimeout(idleTimer); idleTimer = null }
+}
 
 export async function withPage(fn) {
   const port = (await livePort()) || (await launchBrowser()).port
@@ -346,6 +368,7 @@ export async function withPage(fn) {
     ws.send(JSON.stringify({ id: i, method, params }))
   })
   try {
+    touchBrowser()
     await send('Network.enable')
     await send('Page.enable')
     return await fn({ send, port, target })
