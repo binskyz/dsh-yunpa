@@ -5,6 +5,7 @@ import {
   allCookies, autofill, submitForm, captchaTo, goto, fetchWith, probeSite, clearBrowserCookies, audit, safeErr, safeUrl, crash, installCrashHandlers,
   extractPosts, toText, sleep,
 } from './core.js'
+import { pickElement, collectPage } from './capture.js'
 
 export const name = 'yunpa'
 export const inject = ['tools']
@@ -300,6 +301,34 @@ TOOLS.push({
     v.cookies[`${args.site}__updated`] = new Date().toISOString()
     const saved = await saveVault(v)
     return { status: 'saved', site: args.site, cookies: list.length, encryptedWithDpapi: saved.dpapi, probe: await probeSite(args.site, list) }
+  },
+})
+
+// ── 元素拾取与滚动采集（capture.js）─────────────────────────────
+TOOLS.push({
+  name: 'browser_pick',
+  description: '让用户在页面上点一个元素，返回 selector / HTML / 尺寸 / 同类数量。定抓取规则时用它，别猜 DOM。',
+  parameters: OBJ({
+    timeoutMs: { type: 'number' },
+  }, []),
+  output: OUT,
+  async execute(args) {
+    return pickElement({ timeoutMs: args.timeoutMs })
+  },
+})
+
+TOOLS.push({
+  name: 'browser_collect',
+  description: '滚动到底采集全文：反复滚屏直到没有新内容（懒加载长页用它）；selector 只取某容器；assert 当场断言 minLength/contains。',
+  parameters: OBJ({
+    selector: { type: 'string' },
+    maxScroll: { type: 'number' },
+    waitMs: { type: 'number' },
+    assert: { type: 'object', additionalProperties: true },
+  }, []),
+  output: OUT,
+  async execute(args) {
+    return collectPage(args)
   },
 })
 

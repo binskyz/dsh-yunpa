@@ -347,6 +347,9 @@ export function stopIdleTimer() {
   if (idleTimer) { clearTimeout(idleTimer); idleTimer = null }
 }
 
+// 页面弹窗的默认处理：true=确认，false=取消。抓取场景几乎总是要放行。
+export const DIALOG_ACCEPT = process.env.DSH_YUNPA_DIALOG_DISMISS === '1' ? false : true
+
 export async function withPage(fn) {
   const port = (await livePort()) || (await launchBrowser()).port
   const target = await pageTarget(port)
@@ -356,6 +359,14 @@ export async function withPage(fn) {
   const pending = new Map()
   ws.addEventListener('message', (ev) => {
     let m; try { m = JSON.parse(ev.data) } catch { return }
+    // 页面弹 alert/confirm/prompt 会把后续 CDP 命令挂住直到超时。
+    // 收到 dialogOpening 立刻放行（默认 accept），抓取才能继续。
+    if (m.method === 'Page.javascriptDialogOpening') {
+      const i = ++id
+      pending.set(i, () => {})
+      try { ws.send(JSON.stringify({ id: i, method: 'Page.handleJavaScriptDialog', params: { accept: DIALOG_ACCEPT } })) } catch {}
+      return
+    }
     if (m.id && pending.has(m.id)) { pending.get(m.id)(m.result ?? m); pending.delete(m.id) }
   })
   await new Promise((res, rej) => {

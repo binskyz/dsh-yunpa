@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 0.10.7 — 2026-11-13
+补三个生态里公认缺的能力（借鉴做法，不引依赖）。
+
+- **dialog 自动放行**：页面 `alert/confirm/prompt` 一弹就会让后续 CDP 命令挂到超时；现在收到 `Page.javascriptDialogOpening` 立刻 `accept`（`DSH_YUNPA_DIALOG_DISMISS=1` 改默认拒绝）。实测带 `confirm` 的页面导航 2.7s 完成、求值正常返回
+- **`browser_collect`**：滚到底采集全文，直到两次滚动无新增；`selector` 只取某容器，`assert.minLength/contains` 当场判定。懒加载长页（飞书/长帖）原来要手写循环
+- **`browser_pick`**：让用户在页面上点一个元素，返回 selector / HTML / 尺寸 / 同类数量——定抓取规则不再靠猜 DOM。CDP 的 `Runtime.evaluate` timeout 对 `awaitPromise` 的 Promise 不生效，用 `Promise.race` 兜底，超时必返回
+- 工具数 31 → 33，schema 合计 5 430 字符（约 3 017 token）
+
 ## 0.10.6 — 2026-11-13
 省 token、按需启停、画面更清。
 
