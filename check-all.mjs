@@ -44,10 +44,16 @@ await step('明文不落盘', async () => {
   return 'cipher-only'
 })
 await step('联网探针（书屋）', async () => {
+  // 三重试：TUN / 代理 / DNS 冷启动时第一次连接偶发 fetch failed，
+  // 偶发不该把整份自检判红（真实故障三次都失败，仍然会红）。
   const core = await import('./core.js')
-  const p = await core.probeSite('alicesw', [])
-  if (p.status !== 200) throw new Error(JSON.stringify(p))
-  return `status=${p.status}`
+  let last
+  for (let i = 0; i < 3; i++) {
+    last = await core.probeSite('alicesw', [])
+    if (last.status === 200) return `status=200（第 ${i + 1} 次）`
+    await new Promise((r) => setTimeout(r, 600))
+  }
+  throw new Error(JSON.stringify(last))
 })
 await step('浏览器开→导航→填表→验证码→关', async () => {
   const core = await import('./core.js')
