@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## 0.10.8 — 2026-11-14
+修 6 个「工具看起来能用、实际拿不到结果」的问题，新增 1 个工具。
+
+- **`textOut` 渲染契约写错（严重）**：框架按 `render(args, value)` 调用，原实现只收一个参数，于是 **所有工具的结果都把入参当结果回显**——`browser_meta` 显示 `{}`、`browser_get_text` 显示 `{"selector":"h1"}`、`auth_fetch` 显示你传的 url。0.10.7 发布包全部受影响，升级到本版工具结果才真正可用
+- **返回体里的 `undefined` 会让整条结果被宿主丢弃**（报 `value is not lossless JSON`）：`auth_fetch` 的 `count`、`browser_wait` 的 `selector/urlIncludes/cookieSite`、`browser_collect` 的 `checks` 都踩过。现在 `guard()` 里统一 `sanitizeJson()` 兜底（`undefined`→`null`、非有限数→`null`、`Date`→ISO）
+- **点击开新标签后不跟随**：`browser_click` 打在 `target=_blank` 上时新开了标签，但 `currentTarget` 还停在旧页，表现为「点了没反应」。现在比较点击前后 target 列表，新增即跟随
+- **`browser_new_tab` / `browser_close_tab` 的目标管理**：新建后不切到新页、关闭后不重选，后续操作会打到僵尸 target
+- **新增 `browser_eval`**：在页面上下文执行 JS（支持 `await`），`returnByValue` + 15s 超时 + 8k 截断 + 异常转文本。页面内 `fetch` 自带指纹 cookie，可绕开 412 与 wbi 签名——读 `__INITIAL_STATE__` / `__playinfo__` / 页面内接口都走它
+- **站点表热更新**：`SITES` 在模块加载时读一次，直接改 `sites.json` 不生效；正确做法是 `POST /api/yunpa/sites`（内部走 `saveSites`，同步内存与文件）
+- 参数级 `description` 恢复到 69/69 全覆盖（0.10.6 为省 token 删掉的那批），并校正过期路径：`.dsh-login/...` → `~/.dsh/private/yunpa/...`
+- 工具数 33 → 34；`auth_fetch` 的 `kind=raw` 现在返回 `count` 为字符数而不是被整条丢弃
+- 离线审计脚本 `verify-yunpa-header.mjs` / `check-yunpa-desc.mjs`：加载插件、桩 `ctx.tools.register`、按宿主规则校验 schema 与描述覆盖；`YUNPA_CRASH_SILENT=1` 让 `crash()` 在审计时不写 `crash.jsonl`
+
 ## 0.10.7 — 2026-11-13
 补三个生态里公认缺的能力（借鉴做法，不引依赖）。
 

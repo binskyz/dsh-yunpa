@@ -10,7 +10,12 @@ import { pickElement, collectPage } from './capture.js'
 export const name = 'yunpa'
 export const inject = ['tools']
 
-const textOut = (v) => [{ type: 'text', text: typeof v === 'string' ? v : JSON.stringify(v, null, 2) }]
+// render 契约是 (args, value)：只收一个参数会把「参数」当结果显示，等于回显入参。
+// 2026-11-14 修：任何返回对象（browser_meta / auth_status / auth_fetch…）之前都显示成入参或 {}。
+function textOut() {
+  const v = arguments.length > 1 ? arguments[1] : arguments[0]
+  return [{ type: 'text', text: typeof v === 'string' ? v : JSON.stringify(v, null, 2) }]
+}
 const OBJ = (props, required = []) => ({
   type: 'object',
   additionalProperties: false,
@@ -87,6 +92,7 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'auth_capture',
+  description: '登录完成后把受控浏览器里该站点的 cookie 抓进加密凭据库；close/wipeProfile 可关窗、清 profile，返回登录态探测结果。',
   parameters: OBJ({
     site: { type: 'string', required: true },
     close: { type: 'boolean' },
@@ -121,6 +127,7 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'auth_status',
+  description: '列凭据库里每个站点的 cookie 数、账号、剩余有效天数和受控浏览器端口；probe=false 跳过真实请求探测。',
   parameters: OBJ({ probe: { type: 'boolean', description: '是否真的发请求探测，默认 true' } }),
   output: OUT,
   async execute(args) {
@@ -141,6 +148,7 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'auth_fetch',
+  description: '带登录态抓页面：kind=text/posts/raw/threads 决定提取方式；pages>1 自动翻页合并去重并编号楼层；urls 批量最多 5 条；out 落盘。',
   parameters: OBJ({
     site: { type: 'string', required: true },
     url: { type: 'string', required: true },
@@ -238,7 +246,9 @@ TOOLS.push({
     }
     return {
       status: r.status, url: r.url, bytes: r.bytes, out: args.out || null,
-      count: Array.isArray(payload) ? payload.length : undefined,
+      // 之前写成 count: Array.isArray(payload) ? payload.length : undefined，
+      // undefined 会让宿主的无损 JSON 校验拒掉整个工具结果（2026-11-14 修）
+      count: Array.isArray(payload) ? payload.length : (typeof payload === 'string' ? payload.length : null),
       head: Array.isArray(payload)
         ? payload.slice(0, 5).map((p) => `[${p.floor}] ${p.author || ''} ${p.text.slice(0, 160)}`).join('\n')
         : String(payload).slice(0, args.maxChars ?? 4000),
@@ -332,6 +342,169 @@ TOOLS.push({
   },
 })
 
+// ── 参数级描述（2026-11-14 从 index.js.bak-desc 提回，路径类已按现值校正）──
+// 只在字段缺 description 时补，不覆盖工具定义里已有的；重复 apply 幂等。
+export const PARAM_DESC = {
+  auth_login: {
+    site: '站点键：tieba / nga / pixiv / alicesw，或任意域名',
+    mode: 'browser=开可见窗口人工登录；form=用凭据库自动填表',
+    captcha: 'form 模式第一次返回 needs_captcha 后，把用户报的验证码填这里再调一次',
+    captchaOut: '验证码图落盘路径，默认 ~/.dsh/private/yunpa/shots/captcha-<时间戳>.png',
+  },
+  auth_captcha: {
+    out: '验证码图落盘路径，默认 ~/.dsh/private/yunpa/shots/captcha-<时间戳>.png',
+  },
+  auth_capture: {
+    site: '站点键或域名',
+    close: '抓完是否关掉浏览器，默认 false',
+    wipeProfile: '抓完清掉受控 profile 里的 cookie，只留加密库那份，默认 false',
+  },
+  auth_status: {
+    probe: '是否真的发请求探测，默认 true',
+  },
+  auth_fetch: {
+    site: '站点键，决定用哪份 cookie',
+    url: '单个 URL；批量时改用 urls',
+    urls: '批量抓取（最多 5 条，串行 + 间隔）',
+    kind: '默认 text；posts=按站点提楼层；raw=原始 HTML；threads=贴吧吧列表',
+    pages: '翻页数（1–20，默认 1）；贴吧用 pn=、NGA 用 page=',
+    out: '落盘路径（可选）',
+    maxChars: '返回前 N 字符，默认 4000',
+  },
+  auth_vault: {
+    action: 'set=存账号密码 / list=列已存站点 / forget=删掉该站点',
+    site: '站点键',
+    username: '账号（set 时用）',
+    password: '密码（set 时用，不回显）',
+  },
+  auth_cookie: {
+    site: '站点键',
+    cookie: '"k=v; k2=v2" 形式',
+  },
+  auth_edge_list: {
+    browser: '默认 edge',
+    profile: '默认 Default',
+    host: '只看某个域名片段，如 baidu',
+  },
+  auth_edge_import: {
+    browser: '默认 edge',
+    profile: '默认 Default',
+  },
+  auth_edge_login: {
+    site: '站点键',
+    captcha: '自动填充没触发时，第二次调用带上验证码提交表单',
+  },
+  auth_browser_install: {
+    force: '重装，默认 false',
+  },
+  auth_dump_passwords: {
+    hosts: '逗号分隔域名片段，如 baidu,qq；空=按顺序取前 limit 条',
+    limit: '最多处理几条，默认 3',
+    csv: '同时导出 Chrome 可导入的 CSV 到该路径（可选）',
+  },
+  auth_export_csv: {
+    out: '落盘路径，默认 ~/.dsh/private/yunpa/exports/passwords.csv',
+  },
+  auth_pw_open: {
+    origin: '完整登录页 URL',
+  },
+  auth_pw_grab: {
+    site: '存到哪个站点键，默认用当前页 host',
+    csv: '同时导出 CSV 路径（可选）',
+    waitSec: '最多等多少秒等你点自动填充，默认 0=不等待',
+  },
+  auth_fill_from_vault: {
+    site: '凭据库里的站点键',
+    userRef: '账号框 ref（可选，不给就按快照自动找）',
+    passRef: '密码框 ref（可选，不给就按快照自动找）',
+    submit: '填完是否按 Enter 提交，默认 false',
+  },
+  browser_open: {
+    url: '要打开的地址',
+  },
+  browser_snapshot: {
+    maxText: '正文截断长度，默认 6000',
+    maxElements: '元素上限，默认 120',
+  },
+  browser_click: {
+    ref: '如 e3，来自 browser_snapshot',
+  },
+  browser_type: {
+    ref: '如 e3，来自 browser_snapshot',
+    text: '要填的文本',
+    allowPassword: '密码框默认拒填，仅调试时置 true',
+  },
+  browser_scroll: {
+    dir: '默认 down：up/down 滚一屏，top/bottom 到顶到底',
+  },
+  browser_press: {
+    key: 'Enter / Tab / Escape / ArrowUp / ArrowDown / Backspace',
+  },
+  browser_eval: {
+    expression: '要执行的 JS，支持 await（如 (async()=>{const r=await fetch("/x/player/wbi/v2?...",{credentials:"include"});return r.json()})()）',
+    timeoutMs: '超时毫秒，默认 15000，上限 60000',
+    maxChars: '返回文本截断长度，默认 8000',
+  },
+  browser_get_text: {
+    selector: '可选，如 .d_post_content',
+  },
+  browser_screenshot: {
+    out: 'PNG 落盘路径，默认 ~/.dsh/private/yunpa/shots/page-<时间戳>.png',
+  },
+  browser_new_tab: {
+    url: '新标签页地址',
+  },
+  browser_close_tab: {
+    id: '来自 browser_tabs 的 id',
+  },
+  browser_wait: {
+    selector: '等某元素出现',
+    urlIncludes: '等 URL 含指定片段',
+    cookieSite: '如 tieba：检测 BDUSS 是否就位',
+    timeoutMs: '默认 20000',
+  },
+  browser_wait_login: {
+    site: '站点键，检测该站登录 cookie 是否就位',
+    timeoutMs: '默认 120000',
+  },
+  browser_pick: {
+    timeoutMs: '等用户点选的超时毫秒数',
+  },
+  browser_collect: {
+    selector: '只取某容器（可选，默认整页）',
+    maxScroll: '最多滚几次',
+    waitMs: '每次滚动后等待毫秒数',
+    assert: '当场断言，如 { minLength: 500, contains: "关键词" }',
+  },
+}
+
+function withParamDesc(tool) {
+  const map = PARAM_DESC[tool.name]
+  const props = tool && tool.parameters && tool.parameters.properties
+  if (!map || !props) return tool
+  for (const [field, text] of Object.entries(map)) {
+    const spec = props[field]
+    // 表即真相：表里有就以表为准，避免字面量里的旧文案（如过时路径）残留
+    if (spec && typeof spec === 'object') spec.description = text
+  }
+  return tool
+}
+
+// 宿主要求工具结果无损 JSON：undefined 会让整条结果被判 "value is not lossless JSON" 而丢掉。
+// 可选参数没传时返回对象里很容易漏 undefined（browser_wait / auth_fetch 都踩过），这里统一兜底。
+function sanitizeJson(v) {
+  if (v === undefined) return null
+  if (v === null) return v
+  const t = typeof v
+  if (t === 'number') return Number.isFinite(v) ? v : null
+  if (t !== 'object') return t === 'function' || t === 'symbol' || t === 'bigint' ? null : v
+  if (v instanceof Date) return v.toISOString()
+  if (Array.isArray(v)) return v.map(sanitizeJson)
+  const out = {}
+  for (const [k, x] of Object.entries(v)) out[k] = sanitizeJson(x)
+  return out
+}
+
 // 每个工具都包一层 try/catch：插件内任何异常都不能冒到 host（否则会打断工具调用链）
 function guard(tool) {
   const run = tool.execute
@@ -339,7 +512,7 @@ function guard(tool) {
     ...tool,
     async execute(args, exec) {
       try {
-        return await run(args, exec)
+        return sanitizeJson(await run(args, exec))
       } catch (e) {
         return { status: 'error', tool: tool.name, reason: safeErr(e) }
       }
@@ -350,7 +523,7 @@ function guard(tool) {
 export function apply(ctx) {
   try { installCrashHandlers() } catch {}
   try { crash('boot', { message: 'host half loaded' }) } catch {}
-  for (const t of TOOLS) ctx.tools.register(guard(t))
+  for (const t of TOOLS) ctx.tools.register(guard(withParamDesc(t)))
 
   // 设置页的数据源：同源 /api/yunpa/*（webServer 就绪后才注册，没有也不拖垮工具层）
   if (typeof ctx.inject === 'function') ctx.inject(['webServer'], (scoped) => {
@@ -390,6 +563,7 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'auth_edge_import',
+  description: '把 Edge/Chrome/Brave 密码库里的登录数据导进受控浏览器 profile（凭据留在本地库，不回显明文）。',
   parameters: OBJ({ browser: { type: 'string', enum: ['edge', 'chrome', 'brave'] }, profile: { type: 'string' } }),
   output: OUT,
   async execute(args) {
@@ -400,6 +574,7 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'auth_edge_login',
+  description: '先从 Edge 密码库导入该站点凭据，再打开登录页触发自动填充；填充没触发时带 captcha 提交表单重试。',
   parameters: OBJ({
     site: { type: 'string', required: true },
     captcha: { type: 'string' },
@@ -474,6 +649,7 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'auth_dump_passwords',
+  description: '按 hosts 从 Edge 密码库逐站取出账号密码（用 Edge 自身解锁 v20，逐页自动填充读 DOM，默认只取 3 条），写入加密凭据库，csv 可另存。',
   parameters: OBJ({
     hosts: { type: 'string' },
     limit: { type: 'integer' },
@@ -499,7 +675,8 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'auth_export_csv',
-  parameters: OBJ({ out: { type: 'string', description: '落盘路径，默认 .dsh-login/passwords.csv' } }),
+  description: '把凭据库里所有带密码的账号导出成 CSV，默认落 .dsh/private/yunpa/exports/passwords.csv（明文文件，注意存放位置）。',
+  parameters: OBJ({ out: { type: 'string', description: '落盘路径，默认 ~/.dsh/private/yunpa/exports/passwords.csv' } }),
   output: OUT,
   async execute(args) {
     const v = await loadVault()
@@ -517,6 +694,7 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'auth_pw_open',
+  description: '在受控浏览器打开指定登录页，等你手动点浏览器的自动填充建议；填充后用 auth_pw_grab 取回密码。',
   parameters: OBJ({ origin: { type: 'string', required: true, description: '完整登录页 URL' } }, ['origin']),
   output: OUT,
   async execute(args) { return openForManualFill(args.origin) },
@@ -524,6 +702,7 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'auth_pw_grab',
+  description: '读取当前窗口自动填充后写进表单的账号密码并存库；waitSec 可轮询等你手动点填充，csv 可顺带导出。',
   parameters: OBJ({
     site: { type: 'string' },
     csv: { type: 'string' },
@@ -559,6 +738,7 @@ const TOGGLES = { open: '浏览器没开时自动拉起可见窗口' }
 
 TOOLS.push({
   name: 'browser_open',
+  description: '打开（或复用）受控可见浏览器并跳转到 url，返回调试端口与是否复用。',
   parameters: OBJ({ url: { type: 'string', required: true } }, ['url']),
   output: OUT,
   async execute(args) {
@@ -570,6 +750,7 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'browser_snapshot',
+  description: '快照当前页：标题、正文文本与可交互元素编号 ref（后续 click/type 都用这些 ref）。',
   parameters: OBJ({
     maxText: { type: 'integer' },
     maxElements: { type: 'integer' },
@@ -580,6 +761,7 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'browser_click',
+  description: '点击 browser_snapshot 给出的 ref 元素；ref 失效时先重拍快照。',
   parameters: OBJ({ ref: { type: 'string', required: true, description: '如 e3' } }, ['ref']),
   output: OUT,
   async execute(args) { return B.click(args.ref) },
@@ -587,6 +769,7 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'browser_type',
+  description: '往 ref 元素填文本；密码框默认拒填，确需填写带 allowPassword，正规做法是 auth_fill_from_vault。',
   parameters: OBJ({
     ref: { type: 'string', required: true },
     text: { type: 'string', required: true },
@@ -606,6 +789,7 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'browser_scroll',
+  description: '滚动当前页：up/down 滚一屏，top/bottom 到顶到底，返回当前滚动位置。',
   parameters: OBJ({ dir: { type: 'string', enum: ['up', 'down', 'top', 'bottom'] } }),
   output: OUT,
   async execute(args) { return B.scroll(args.dir || 'down') },
@@ -613,6 +797,7 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'browser_get_text',
+  description: '取当前页纯文本，给 selector 就只取该容器的 innerText，最多 8000 字。',
   parameters: OBJ({ selector: { type: 'string', description: '可选，如 .d_post_content' } }),
   output: OUT,
   async execute(args) { return B.getText(args.selector) },
@@ -620,13 +805,27 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'browser_meta',
+  description: '返回当前页的标题与 URL。',
   parameters: OBJ({}),
   output: OUT,
   async execute() { return B.meta() },
 })
 
 TOOLS.push({
+  name: 'browser_eval',
+  description: '在受控浏览器当前页执行 JS 表达式（支持 await），返回 JSON 文本。页面内 fetch 自带指纹 cookie，可绕开 412 与 wbi 签名——读 __INITIAL_STATE__ / __playinfo__ / 页面内接口都走它。',
+  parameters: OBJ({
+    expression: { type: 'string', required: true },
+    timeoutMs: { type: 'number' },
+    maxChars: { type: 'integer' },
+  }, ['expression']),
+  output: OUT,
+  async execute(args) { return B.evaluate(args.expression, { timeoutMs: args.timeoutMs, maxChars: args.maxChars }) },
+})
+
+TOOLS.push({
   name: 'browser_screenshot',
+  description: '当前页截 PNG 存文件，默认落 .dsh/private/yunpa/shots/page-*.png。',
   parameters: OBJ({ out: { type: 'string' } }),
   output: OUT,
   async execute(args) { return B.screenshot(args.out) },
@@ -634,6 +833,7 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'browser_tabs',
+  description: '列出受控浏览器的所有标签页 id/标题/URL，关闭标签页时用它的 id。',
   parameters: OBJ({}),
   output: OUT,
   async execute() { return B.tabs() },
@@ -641,6 +841,7 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'browser_new_tab',
+  description: '新开一个标签页并打开 url；浏览器没在跑会自动拉起。',
   parameters: OBJ({ url: { type: 'string', required: true } }, ['url']),
   output: OUT,
   async execute(args) { return B.newTab(args.url) },
@@ -648,6 +849,7 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'browser_close_tab',
+  description: '按 browser_tabs 返回的 id 关闭标签页。',
   parameters: OBJ({ id: { type: 'string', required: true } }, ['id']),
   output: OUT,
   async execute(args) { return B.closeTab(args.id) },
@@ -655,6 +857,7 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'browser_wait',
+  description: '轮询等待条件成立：selector 出现、URL 含某串或指定站点 cookie 到位，默认 20 秒。',
   parameters: OBJ({
     selector: { type: 'string' },
     urlIncludes: { type: 'string' },
@@ -667,6 +870,7 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'browser_wait_login',
+  description: '等指定站点的登录态 cookie 出现，默认 120 秒；人工登录完用它卡住后续抓取。',
   parameters: OBJ({
     site: { type: 'string', required: true },
     timeoutMs: { type: 'integer' },

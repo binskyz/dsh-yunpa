@@ -142,7 +142,7 @@ export async function collectPage({ selector = '', maxScroll = 30, waitMs = 400,
   }
   return {
     ok: true, url: out.url, title: out.title, length: out.length, scrolls: out.scrolls,
-    text: out.text, checks: checks.length ? checks : undefined,
-    allChecksPassed: checks.length ? checks.every((c) => c.ok) : undefined,
+    text: out.text, checks: checks.length ? checks : null,
+    allChecksPassed: checks.length ? checks.every((c) => c.ok) : null,
   }
 }

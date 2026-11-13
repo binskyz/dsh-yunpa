@@ -591,6 +591,9 @@ export function safeErr(e) {
 // ---------- 崩溃日志（任何异常都要留痕，且能还原） ----------
 export async function crash(source, err, extra = {}) {
   try {
+    // 离线审计（import 插件跑 apply() 做 schema 校验）会触发 boot 记录，污染真实故障日志。
+    // 设 YUNPA_CRASH_SILENT=1 即可静音，只影响写盘，不影响返回值。
+    if (String(process.env.YUNPA_CRASH_SILENT || '') === '1') return
     const e = err && typeof err === 'object' ? err : { message: String(err) }
     const line = JSON.stringify({
       ts: new Date().toISOString(),

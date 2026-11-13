@@ -1,6 +1,6 @@
 {
   "name": "dsh-yunpa",
-  "version": "0.10.7",
+  "version": "0.10.8",
   "type": "module",
   "description": "DSH 插件：本地加密凭据库 + 无头浏览器登录态 + 带登录态抓取（贴吧/NGA/Pixiv/书屋），含浏览器密码迁移与设置页",
   "main": "./index.js",

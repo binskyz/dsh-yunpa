@@ -1,7 +1,7 @@
 // browser.js · 照 dsh-browser-companion 的骨架重铺的一层浏览器动作
 // 它全部动作都基于"快照 + 编号 ref"，我这边用 CDP 的 Runtime.evaluate 实现同等语义，
 // 不额外依赖 agent-browser / 全局 npm 包。
-import { withPage, livePort, launchBrowser, goto, sleep, allCookies, SITES, ROOT } from './core.js'
+import { withPage, livePort, launchBrowser, goto, sleep, allCookies, SITES, ROOT, setCurrentTarget, getCurrentTarget } from './core.js'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 
@@ -36,8 +36,19 @@ export async function snapshot({ maxText = 6000, maxElements = 120 } = {}) {
   })
 }
 
+async function pageIds(port) {
+  try {
+    const l = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json()
+    return l.filter((t) => t.type === 'page').map((t) => t.id)
+  } catch { return [] }
+}
+
 export async function click(ref) {
-  return withPage(async ({ send }) => {
+  // 点击常开新标签（target=_blank / window.open）。不跟随的话后续工具还停在旧页，
+  // 表现为「点了没反应」——2026-11-14 在 B 站导航上踩到。
+  const port = await livePort()
+  const before = port ? await pageIds(port) : []
+  const r = await withPage(async ({ send }) => {
     const js = `(() => {
       const el = document.querySelector('[data-dsh-ref="REF"]')
       if (!el) return { ok: false, reason: 'ref 不存在，先 browser_snapshot' }
@@ -45,9 +56,16 @@ export async function click(ref) {
       el.click()
       return { ok: true, tag: el.tagName, label: (el.innerText || el.value || '').slice(0, 60) }
     })()`.replace('REF', String(ref))
-    const r = await send('Runtime.evaluate', { expression: js, returnByValue: true })
-    return r.result?.value
+    const out = await send('Runtime.evaluate', { expression: js, returnByValue: true })
+    return out.result?.value
   })
+  if (port) {
+    await sleep(700)
+    const after = await pageIds(port)
+    const added = after.filter((id) => !before.includes(id))
+    if (added.length) setCurrentTarget(added[added.length - 1])
+  }
+  return r
 }
 
 export async function typeInto(ref, text, { allowPassword = false } = {}) {
@@ -102,6 +120,29 @@ export async function getText(selector) {
   })
 }
 
+// 在页面上下文执行任意 JS（支持 await），结果按 JSON 文本返回。
+// 这是绕开 412 / wbi 的通用出口：页面内 fetch 自带指纹 cookie，签名由站点自己的 JS 算好。
+export async function evaluate(expression, { timeoutMs = 15000, maxChars = 8000 } = {}) {
+  const src = String(expression || '')
+  if (!src.trim()) return { ok: false, error: 'expression 为空', chars: 0, truncated: false, text: '' }
+  const ms = Math.max(1000, Math.min(60000, Number(timeoutMs) || 15000))
+  const out = await withPage(async ({ send }) => Promise.race([
+    send('Runtime.evaluate', { expression: src, returnByValue: true, awaitPromise: true, timeout: ms }),
+    sleep(ms + 2000).then(() => ({ __timeout: true })),
+  ]))
+  if (out && out.__timeout) return { ok: false, error: 'evaluate 超时', chars: 0, truncated: false, text: '' }
+  if (out && out.exceptionDetails) {
+    const d = out.exceptionDetails
+    const msg = String((d.exception && d.exception.description) || d.text || 'eval error').slice(0, 500)
+    return { ok: false, error: msg, chars: 0, truncated: false, text: '' }
+  }
+  const v = out && out.result ? out.result.value : undefined
+  const text = typeof v === 'string' ? v : (v === undefined ? 'undefined' : JSON.stringify(v))
+  const cap = Math.max(200, Number(maxChars) || 8000)
+  const clipped = text.length > cap ? text.slice(0, cap) : text
+  return { ok: true, chars: text.length, truncated: text.length > clipped.length, text: clipped }
+}
+
 export async function meta() {
   return withPage(async ({ send }) => {
     const r = await send('Runtime.evaluate', { expression: 'document.title + "|" + location.href', returnByValue: true })
@@ -132,13 +173,16 @@ export async function tabs() {
 export async function newTab(url) {
   const port = (await livePort()) || (await launchBrowser()).port
   const t = await (await fetch(`http://127.0.0.1:${port}/json/new?${encodeURIComponent(url)}`, { method: 'PUT' })).json()
-  return { opened: t.id, url, title: t.title }
+  if (t && t.id) setCurrentTarget(t.id)
+  return { opened: t ? t.id : null, url, title: t ? t.title : null }
 }
 
 export async function closeTab(id) {
   const port = await livePort()
   if (!port) return { closed: false, reason: '浏览器没在跑' }
   await fetch(`http://127.0.0.1:${port}/json/close/${id}`)
+  const rest = await pageIds(port)
+  if (!rest.includes(getCurrentTarget())) setCurrentTarget(rest.length ? rest[rest.length - 1] : null)
   return { closed: true, id }
 }
 
@@ -168,7 +212,7 @@ export async function waitFor({ selector, urlIncludes, cookieSite, timeoutMs = 2
     }
     await sleep(800)
   }
-  return { ok: false, timeoutMs, selector, urlIncludes, cookieSite }
+  return { ok: false, timeoutMs, selector: selector ?? null, urlIncludes: urlIncludes ?? null, cookieSite: cookieSite ?? null }
 }
 
 // 从当前页面 DOM 直接提楼层（贴吧 / NGA），比正则更稳
